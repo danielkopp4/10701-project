@@ -2,10 +2,23 @@
 Show all variables available in the merged NHANES dataset
 """
 
+import os
+from pathlib import Path
+
 import pandas as pd
 
 # Load just the column names (don't load full data)
-df = pd.read_csv('../nhanes/nhanes_2017_2018_merged.csv')
+data_dir = Path(os.getenv("RAW_DATA_PATH", "data/raw"))
+candidates = [
+    data_dir / "nhanes_all_cycles_merged.csv",
+    data_dir / "nhanes_2017_2018_merged.csv",
+]
+
+df_path = next((p for p in candidates if p.exists()), None)
+if df_path is None:
+    raise FileNotFoundError("No merged NHANES dataset found in data/raw")
+
+df = pd.read_csv(df_path)
 
 print('='*80)
 print(f'TOTAL VARIABLES PER PATIENT: {len(df.columns)}')

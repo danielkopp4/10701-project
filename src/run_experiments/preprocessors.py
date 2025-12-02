@@ -85,6 +85,13 @@ class NHANESPreprocessor(Preprocessor):
     - scales features
     """
 
+    # TODO: add option to encode categorical variables differently
+    # TODO: add option to create missingness indicators
+    # TODO: add option to do more advanced imputation (e.g. KNN, MICE)
+    # TODO: add option to only include "easy to capture" features (intake survey only)
+    # TODO: add option to include interaction terms, polynomial features, 
+    #       transformations of weight / height to get a better BMI representation
+
     def __init__(
         self,
         exclude_downstream: bool = True,
