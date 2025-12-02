@@ -20,6 +20,7 @@ TODO:
 - [ ] add more models 
 - [ ] add more experiments
 - [ ] validate outcomes of the analysis
+- [ ] figure out why BMI only errors out and gives NAN correlation
 
 
 Experiments we should run

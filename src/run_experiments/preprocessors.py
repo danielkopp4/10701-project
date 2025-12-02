@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 
-from .constructs import Preprocessor
+from ..common import Preprocessor
 
 
 # IDs / outcome columns we never want as features

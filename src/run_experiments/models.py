@@ -1,7 +1,7 @@
 import numpy as np
 from sksurv.linear_model import CoxPHSurvivalAnalysis
 
-from .constructs import ModelWrapper
+from ..common import ModelWrapper
 
 
 class Cox(ModelWrapper):

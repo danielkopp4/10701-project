@@ -1,6 +1,6 @@
 from typing import Dict
 
-from .constructs import Experiment, ExperimentArtifacts
+from ..common import Experiment, ExperimentArtifacts, get_experiment_artifacts_path
 from .models import Cox
 from .preprocessors import NHANESPreprocessor
 from .evaluate import evaluate_experiment
@@ -14,7 +14,7 @@ def run_experiments(
     nhanes_csv_path: str,
     synthetic_n: int = 10000,
     T_eval_years: float = 10.0,
-    sensitive_attr: str = "BMXWT",
+    target_feature: str = "BMXWT",
     verbose: bool = True,
 ) -> Dict[str, ExperimentArtifacts]:
     T_eval_months = T_eval_years * 12.0
@@ -25,158 +25,63 @@ def run_experiments(
         n=synthetic_n
     )
     
+    # make sure experiment artifacts folder exists
+    get_experiment_artifacts_path("placeholder").parent.mkdir(parents=True, exist_ok=True)
     
-    # real NHANES
-    real_preproc = NHANESPreprocessor(
-        exclude_downstream=True,
-        impute_strategy="median",
-    )
-    real_model = Cox(alpha=0.1) # alpha to avioid overflow
-
-    exp_real = Experiment(
-        name="cox_real_nhanes",
-        model=real_model,
-        preprocessor=real_preproc,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_real"},
-    )
-
-    art_real = evaluate_experiment(
-        data=real_data,
-        experiment=exp_real,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=False,  # no simulator oracle for real data
-    )
-    artifacts_by_name[exp_real.name] = art_real
-
-    # synthetic NHANES
-    synth_preproc = NHANESPreprocessor(
-        exclude_downstream=True,
-        impute_strategy="median",
-    )
-    synth_model = Cox(alpha=0.1)  # alpha to avioid overflow
-
-    exp_synth = Experiment(
-        name="cox_synthetic_nhanes",
-        model=synth_model,
-        preprocessor=synth_preproc,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_synthetic"},
-    )
-
-    art_synth = evaluate_experiment(
-        data=synth_data,
-        experiment=exp_synth,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=True
-    )
-    artifacts_by_name[exp_synth.name] = art_synth
+    def evaluate_experiments(datasets, preprocessors, models, A_strata=50, T_eval=T_eval_months, name_prefix=""):
+        for dataset_name, dataset in datasets:
+            for preproc_name, preprocessor in preprocessors:
+                for model_name, model in models:
+                    exp_name = f"{name_prefix}{model_name}_{dataset_name}_{preproc_name}"
+                    experiment = Experiment(
+                        name=exp_name,
+                        model=model,
+                        preprocessor=preprocessor,
+                        T_eval=T_eval,
+                        A_strata=A_strata,
+                        metadata={"dataset": dataset_name},
+                    )
+                    
+                    art = evaluate_experiment(
+                        data=dataset,
+                        experiment=experiment,
+                        target_feature=target_feature,
+                        verbose=verbose,
+                        test_causal=(dataset_name == "nhanes_synthetic")
+                    )
+                    art.save(
+                        get_experiment_artifacts_path(experiment.name)
+                    )
+                    artifacts_by_name[experiment.name] = art
     
-    # ---------------------------------------------------------
+    datasets = [
+        ("nhanes_real", real_data),
+        ("nhanes_synthetic", synth_data),
+    ]
     
-    # real NHANES
-    real_preproc_2 = NHANESPreprocessor(
-        exclude_all=True,
-        impute_strategy="median",
-    )
-    real_model_2 = Cox(alpha=0.1) # alpha to avioid overflow
-
-    exp_real_2 = Experiment(
-        name="cox_real_nhanes_classic",
-        model=real_model_2,
-        preprocessor=real_preproc_2,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_real"},
-    )
-
-    art_real = evaluate_experiment(
-        data=real_data,
-        experiment=exp_real_2,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=False,  # no simulator oracle for real data
-    )
-    artifacts_by_name[exp_real_2.name] = art_real
-
-    # synthetic NHANES
-    synth_preproc_2 = NHANESPreprocessor(
-        exclude_all=True,
-        impute_strategy="median",
-    )
-    synth_model_2 = Cox(alpha=0.1)  # alpha to avioid overflow
-
-    exp_synth_2 = Experiment(
-        name="cox_synthetic_nhanes_classic",
-        model=synth_model_2,
-        preprocessor=synth_preproc_2,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_synthetic"},
-    )
-
-    art_synth = evaluate_experiment(
-        data=synth_data,
-        experiment=exp_synth_2,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=True
-    )
-    artifacts_by_name[exp_synth_2.name] = art_synth
+    preprocessors = [
+        ("exclude_downstream", NHANESPreprocessor(exclude_downstream=True)),
+        ("exclude_all", NHANESPreprocessor(exclude_all=True)), # standard approach
+        # ("include_all", False), # requires higher alpha 
+    ]
     
-    # ---------------------------------------------------------
+    models = [
+        ("cox", Cox(alpha=0.1)),
+    ]
     
-    real_preproc_3 = NHANESPreprocessor(
-        exclude_downstream=False,
-        impute_strategy="median",
+    evaluate_experiments(
+        datasets, 
+        preprocessors, 
+        models, 
+        A_strata=50
     )
-    real_model_3 = Cox(alpha=1) # alpha to avioid overflow
-
-    exp_real_3 = Experiment(
-        name="cox_real_nhanes_naive",
-        model=real_model_3,
-        preprocessor=real_preproc_3,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_real"},
+    evaluate_experiments(
+        datasets, 
+        [("include_all", NHANESPreprocessor(exclude_downstream=False))], 
+        [("cox (strong reg)", Cox(alpha=1.0))], 
+        A_strata=50, name_prefix="naive_"
     )
-
-    art_real = evaluate_experiment(
-        data=real_data,
-        experiment=exp_real_3,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=False,  # no simulator oracle for real data
-    )
-    artifacts_by_name[exp_real_3.name] = art_real
     
-    # synthetic NHANES
-    synth_preproc_3 = NHANESPreprocessor(
-        exclude_downstream=False,
-        impute_strategy="median",
-    )
-    synth_model_3 = Cox(alpha=1)  # alpha to avioid overflow
-
-    exp_synth_3 = Experiment(
-        name="cox_synthetic_nhanes_naive",
-        model=synth_model_3,
-        preprocessor=synth_preproc_3,
-        T_eval=T_eval_months,
-        metadata={"dataset": "nhanes_synthetic"},
-    )
-
-    art_synth = evaluate_experiment(
-        data=synth_data,
-        experiment=exp_synth_3,
-        sensitive_attr=sensitive_attr,
-        sensitive_levels=None,
-        verbose=verbose,
-        test_causal=True
-    )
-    artifacts_by_name[exp_synth_3.name] = art_synth
+    
 
     return artifacts_by_name

@@ -1,12 +1,10 @@
-# evaluation.py
-from __future__ import annotations
-
 from typing import Optional, Sequence
 
+import pandas as pd
 import numpy as np
 from sksurv.metrics import concordance_index_censored, integrated_brier_score
 
-from .constructs import Experiment, ExperimentArtifacts, Preprocessor, IdentityPreprocessor
+from ..common import Experiment, ExperimentArtifacts, Preprocessor
 from .synthetic_data.simulator import simulate_I_ground_truth_counterfactuals
 
 
@@ -40,31 +38,38 @@ def _predict_survival_matrix(model, X_proc, time_grid=None):
 
 def _compute_individual_index(
     model,
-    preprocessor,   # Preprocessor
+    preprocessor,
     X_raw,
     time_grid,
     t_eval,
     A_name: str,
     A_values: Optional[Sequence] = None,
+    A_strata: int = 300,
 ):
     """
     Compute prediction-based individual index
 
         I_i(T) = p_i(A_obs, T) - min_a p_i(a, T)
-
-    using model + preprocessor. Robust to missing A (e.g. NaN weight):
-    rows with missing A get NaN for I_i and p_obs.
     """
-    if A_values is None:
-        A_values = np.sort(X_raw[A_name].dropna().unique())
+    a_obs = X_raw[A_name]
 
-    A_values = list(A_values)
-    if len(A_values) == 0:
-        raise ValueError(
-            f"_compute_individual_index: no non-missing values found for A={A_name}"
-        )
+    if A_values is None:
+        # Use quantile midpoints as a small representative grid
+        quantiles = np.linspace(0, 1, max(2, min(A_strata, len(a_obs.dropna()))))
+        edges = np.unique(np.quantile(a_obs.dropna(), quantiles))
+        if len(edges) < 2:
+            raise ValueError(f"_compute_individual_index: not enough non-missing values for {A_name}")
+        A_values = 0.5 * (edges[:-1] + edges[1:])
+        A_values = np.unique(A_values)
+    else:
+        A_values = np.array(sorted(set(A_values)), dtype=float)
+        if len(A_values) == 0:
+            raise ValueError(
+                f"_compute_individual_index: provided A_values for {A_name} is empty"
+            )
 
     n_samples = X_raw.shape[0]
+    A_values = np.asarray(A_values, dtype=float)
     n_levels = len(A_values)
 
     rows = []
@@ -92,8 +97,14 @@ def _compute_individual_index(
     # min_a p_i(a, T_eval)
     min_test_P_i = event_probs_cf.min(axis=1)
 
-    A_to_idx = {a: j for j, a in enumerate(A_values)}
-    a_obs = X_raw[A_name]
+    # observed probability at true A (no bin substitution)
+    X_obs_proc = preprocessor.transform(X_raw)
+    surv_obs_list = model.predict_survival_function(X_obs_proc)
+    event_probs_obs = np.array([
+        1.0 - sf(time_grid)[t_idx]
+        for sf in surv_obs_list
+    ])
+
     valid_mask = a_obs.notna()
 
     if not valid_mask.any():
@@ -101,16 +112,13 @@ def _compute_individual_index(
             f"_compute_individual_index: all values of A={A_name} are missing for this split"
         )
 
-    idx_valid = np.where(valid_mask)[0]
-    obs_idx_valid = np.array([A_to_idx[val] for val in a_obs[valid_mask]])
-
     # p_i(A_obs, T_eval), NaN for rows with missing A
     p_obs = np.full(n_samples, np.nan, dtype=float)
-    p_obs[idx_valid] = event_probs_cf[idx_valid, obs_idx_valid]
+    p_obs[valid_mask] = event_probs_obs[valid_mask]
 
     # I_i(T) = p_obs - min_a p_i(a, T_eval), NaN where p_obs is NaN
     pred_index = np.full(n_samples, np.nan, dtype=float)
-    pred_index[idx_valid] = p_obs[idx_valid] - min_test_P_i[idx_valid]
+    pred_index[valid_mask] = p_obs[valid_mask] - min_test_P_i[valid_mask]
 
     return pred_index, min_test_P_i, p_obs, A_values, t_eval_actual
 
@@ -118,8 +126,7 @@ def _compute_individual_index(
 def evaluate_experiment(
     data,
     experiment: Experiment,
-    sensitive_attr: str = "BMXWT",   # name of A in raw X
-    sensitive_levels: Optional[Sequence] = None,
+    target_feature: str = "BMXWT",   # name of A in raw X
     verbose: bool = True,
     test_causal: bool = True,
 ) -> ExperimentArtifacts:
@@ -130,7 +137,7 @@ def evaluate_experiment(
     artifacts.append_data({"name": "dataset_raw", "data": data})
 
     # preprocessing
-    preproc: Preprocessor = experiment.preprocessor or IdentityPreprocessor()
+    preproc: Preprocessor = experiment.preprocessor
     preproc.fit(train_X_raw, train_y)
 
     train_X = preproc.transform(train_X_raw)
@@ -206,8 +213,8 @@ def evaluate_experiment(
             X_raw=test_X_raw,
             time_grid=time_grid,
             t_eval=t_eval,
-            A_name=sensitive_attr,
-            A_values=sensitive_levels,
+            A_name=target_feature,
+            A_strata=experiment.A_strata
         )
 
         pred_pop_index = float(np.nanmean(pred_index))
@@ -220,7 +227,7 @@ def evaluate_experiment(
                 "t_eval_actual": t_eval_actual,
                 "t_eval": t_eval,
                 "probs": p_obs,
-                "attr_name": sensitive_attr,
+                "attr_name": target_feature,
                 "attr_values": A_values,
             },
         })
