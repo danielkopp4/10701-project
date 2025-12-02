@@ -160,10 +160,9 @@ def cleanup_nhanes_data():
     # Define file paths
     raw_data_dir = Path(os.getenv("RAW_DATA_PATH", "data/processed"))
     input_file = raw_data_dir / "nhanes_with_mortality.csv"
-    # output_file = '../nhanes_cleaned.csv'
     processed_data_dir = Path(os.getenv("PROCESSED_DATA_PATH", "data/processed"))
     processed_data_dir.mkdir(parents=True, exist_ok=True)
-    output_file = processed_data_dir / "nhanes.csv"
+    output_file = processed_data_dir / os.getenv("DATASET_NAME", "nhanes.csv")
     
     print("Loading NHANES data with mortality...")
     df = pd.read_csv(input_file)
