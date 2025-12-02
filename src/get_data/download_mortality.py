@@ -62,7 +62,7 @@ def download_mortality():
         exit(1)
 
     print("\nLoading NHANES data...")
-    nhanes = pd.read_csv(nhanes_file)
+    nhanes = pd.read_csv(nhanes_file, low_memory=False)
     print(f"✓ Loaded {len(nhanes):,} NHANES participants")
 
     # Download mortality data for NHANES
@@ -78,6 +78,36 @@ def download_mortality():
 
     # Load mortality data for NHANES
     mort_files = list(data_dir.glob("NHANES_*_MORT_*.dat"))
+    colspecs = [
+        (0, 6),    # seqn
+        (14, 15),  # eligstat
+        (15, 16),  # mortstat
+        (16, 19),  # ucod_leading
+        (19, 20),  # diabetes
+        (20, 21),  # hyperten
+        (21, 22),  # dodqtr
+        (22, 26),  # dodyear
+        (42, 45),  # permth_int
+        (45, 48),  # permth_exm
+    ]
+    column_names = [
+        'SEQN', 'eligstat', 'mortstat', 'ucod_leading',
+        'diabetes', 'hyperten', 'dodqtr', 'dodyear',
+        'permth_int', 'permth_exm'
+    ]
+    
+    dtypes = {
+        'SEQN': int,
+        'eligstat': str,
+        'mortstat': 'Int64',
+        'ucod_leading': 'Int64',
+        'diabetes': 'Int64',
+        'hyperten': 'Int64',
+        'dodqtr': 'Int64',
+        'dodyear': 'Int64',
+        'permth_int': 'Int64',
+        'permth_exm': 'Int64',
+    }
 
     if not mort_files:
         print("\n⚠ No NHANES mortality files found")
@@ -86,42 +116,11 @@ def download_mortality():
         
     else:
         print(f"\nFound {len(mort_files)} mortality file(s)")
+        mortality_dfs = []
         
         # Read mortality data (using same format as NHIS)
         for mort_file in mort_files:
             print(f"\nLoading {mort_file.name}...")
-            
-            colspecs = [
-                (0, 6),    # seqn
-                (14, 15),  # eligstat
-                (15, 16),  # mortstat
-                (16, 19),  # ucod_leading
-                (19, 20),  # diabetes
-                (20, 21),  # hyperten
-                (21, 22),  # dodqtr
-                (22, 26),  # dodyear
-                (42, 45),  # permth_int
-                (45, 48),  # permth_exm
-            ]
-            
-            column_names = [
-                'SEQN', 'eligstat', 'mortstat', 'ucod_leading',
-                'diabetes', 'hyperten', 'dodqtr', 'dodyear',
-                'permth_int', 'permth_exm'
-            ]
-            
-            dtypes = {
-                'SEQN': int,
-                'eligstat': str,
-                'mortstat': 'Int64',
-                'ucod_leading': 'Int64',
-                'diabetes': 'Int64',
-                'hyperten': 'Int64',
-                'dodqtr': 'Int64',
-                'dodyear': 'Int64',
-                'permth_int': 'Int64',
-                'permth_exm': 'Int64',
-            }
             
             mortality = pd.read_fwf(
                 mort_file,
@@ -131,53 +130,62 @@ def download_mortality():
                 na_values=['', '.']
             )
             
+            mortality_dfs.append(mortality)
+            
             print(f"✓ Loaded {len(mortality):,} mortality records")
             
-            # Merge with NHANES data
-            print("\nMerging datasets on SEQN...")
-            merged = nhanes.merge(mortality, on='SEQN', how='left')
-            
-            print(f"✓ Merged dataset: {len(merged):,} rows, {len(merged.columns)} columns")
-            
-            # Calculate follow-up time and create outcome variables
-            print("\nCreating outcome variables...")
-            
-            # Binary mortality outcome (fillna for cases where mortstat is NA)
-            merged['died'] = (merged['mortstat'] == 1).fillna(False).astype(int)
-            
-            # Cause-specific mortality
-            merged['died_cvd'] = ((merged['mortstat'] == 1) & 
-                                (merged['ucod_leading'].isin([1, 5]))).fillna(False).astype(int)
-            merged['died_cancer'] = ((merged['mortstat'] == 1) & 
-                                    (merged['ucod_leading'] == 2)).fillna(False).astype(int)
-            
-            # Summary statistics
-            print("\n" + "="*80)
-            print("DATASET SUMMARY")
-            print("="*80)
-            print(f"Total participants: {len(merged):,}")
-            print(f"Deaths: {merged['died'].sum():,} ({100*merged['died'].mean():.2f}%)")
-            print(f"CVD deaths: {merged['died_cvd'].sum():,}")
-            print(f"Cancer deaths: {merged['died_cancer'].sum():,}")
-            
-            # Check key variables availability
-            print("\n" + "-"*80)
-            print("KEY VARIABLES COMPLETENESS:")
-            print("-"*80)
-            
-            key_vars = ['RIDAGEYR', 'RIAGENDR', 'BMXBMI', 'BMXWT', 'BMXHT', 
-                    'BMXWAIST', 'BPXSY1', 'BPXDI1', 'LBXTC', 'LBXGLU']
-            
-            for var in key_vars:
-                if var in merged.columns:
-                    pct = 100 * merged[var].notna().mean()
-                    print(f"  {var:15s}: {pct:5.1f}% complete")
-            
-            # Save merged dataset
-            # output_file = Path("../nhanes_with_mortality.csv")
-            output_file = data_dir / "nhanes_with_mortality.csv"
-            merged.to_csv(output_file, index=False)
-            print(f"\n✓ Saved merged dataset to: {output_file}")
+        mortality_all = pd.concat(mortality_dfs, ignore_index=True)
+        # Merge with NHANES data
+        print("\nMerging datasets on SEQN...")
+        merged = nhanes.merge(mortality_all, on='SEQN', how='left')
+        
+        print(f"✓ Merged dataset: {len(merged):,} rows, {len(merged.columns)} columns")
+        
+        # Calculate follow-up time and create outcome variables
+        print("\nCreating outcome variables...")
+        
+        # Binary mortality outcome
+        # Only defined for linkage-eligible participants (eligstat == '1')
+        is_eligible = merged['eligstat'].astype(str) == '1'
+
+        merged['died'] = pd.NA
+        merged.loc[is_eligible, 'died'] = (merged.loc[is_eligible, 'mortstat'] == 1).astype(int)
+        merged['died'] = merged['died'].astype('Int64')
+
+        
+        # Cause-specific mortality
+        merged['died_cvd'] = ((merged['mortstat'] == 1) & 
+                            (merged['ucod_leading'].isin([1, 5]))).fillna(False).astype(int)
+        merged['died_cancer'] = ((merged['mortstat'] == 1) & 
+                                (merged['ucod_leading'] == 2)).fillna(False).astype(int)
+        
+        # Summary statistics
+        print("\n" + "="*80)
+        print("DATASET SUMMARY")
+        print("="*80)
+        print(f"Total participants: {len(merged):,}")
+        print(f"Deaths: {merged['died'].sum():,} ({100*merged['died'].mean():.2f}%)")
+        print(f"CVD deaths: {merged['died_cvd'].sum():,}")
+        print(f"Cancer deaths: {merged['died_cancer'].sum():,}")
+        
+        # Check key variables availability
+        print("\n" + "-"*80)
+        print("KEY VARIABLES COMPLETENESS:")
+        print("-"*80)
+        
+        key_vars = ['RIDAGEYR', 'RIAGENDR', 'BMXBMI', 'BMXWT', 'BMXHT', 
+                'BMXWAIST', 'BPXSY1', 'BPXDI1', 'LBXTC', 'LBXGLU']
+        
+        for var in key_vars:
+            if var in merged.columns:
+                pct = 100 * merged[var].notna().mean()
+                print(f"  {var:15s}: {pct:5.1f}% complete")
+        
+        # Save merged dataset
+        # output_file = Path("../nhanes_with_mortality.csv")
+        output_file = data_dir / "nhanes_with_mortality.csv"
+        merged.to_csv(output_file, index=False)
+        print(f"\n✓ Saved merged dataset to: {output_file}")
 
 if __name__ == "__main__":
     from dotenv import load_dotenv

@@ -22,11 +22,11 @@ def download_nhanes():
 
     # NHANES cycles to download (2017-2018 to match your mortality data)
     cycles = [
-        "2017",
+        "2017-2018",
     ]
 
     # Define file codes for each data type
-    # Format: (filename_prefix, description)
+    # Format: (fil\ename_prefix, description)
     file_types = {
         'demographics': ('DEMO', 'Demographics'),
         'body_measures': ('BMX', 'Body Measures'),

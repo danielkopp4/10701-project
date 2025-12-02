@@ -29,7 +29,7 @@ ESSENTIAL_VARIABLES = [
     'BMXARMC',     # Arm circumference (cm)
     'BMXWAIST',    # Waist circumference (cm)
     'BMXHIP',      # Hip circumference (cm)
-    'BMXARMC',     # Arm circumference (cm) - duplicate
+    'BMXARMC',     # Arm circumference (cm) - duplicate [umm why?]
     
     # Blood Pressure (individual readings - will be averaged)
     'BPXSY1',      # Systolic BP - 1st reading (mm Hg)
@@ -154,11 +154,22 @@ ESSENTIAL_VARIABLES = [
     'mortstat',
     'diabetes',
     'hyperten',
+    
+    # keep follow-up time and derived death flag
+    'permth_exm',   # person-months from exam to death/censoring
+    'permth_int',   # person-months from interview to death/censoring
+    'died',         # binary death indicator created in download_mortality.py
+    
+    # survey design
+    'SDMVSTRA',    # masked variance pseudo-stratum
+    'SDMVPSU',     # masked variance pseudo-PSU
+    'WTMEC2YR',    # MEC exam weight
+    'WTINT2YR',    # interview weight
 ]
 
 def cleanup_nhanes_data():
     # Define file paths
-    raw_data_dir = Path(os.getenv("RAW_DATA_PATH", "data/processed"))
+    raw_data_dir = Path(os.getenv("RAW_DATA_PATH", "data/raw"))
     input_file = raw_data_dir / "nhanes_with_mortality.csv"
     processed_data_dir = Path(os.getenv("PROCESSED_DATA_PATH", "data/processed"))
     processed_data_dir.mkdir(parents=True, exist_ok=True)
@@ -168,10 +179,25 @@ def cleanup_nhanes_data():
     df = pd.read_csv(input_file)
     
     print(f"Original dataset shape: {df.shape}")
+    
+    if 'eligstat' in df.columns:
+        before = len(df)
+        eligible_mask = df['eligstat'].astype(str) == '1'
+        df = df[eligible_mask].copy()
+        print(f"Filtered to linkage-eligible participants: {before} -> {len(df)}")
+    
+    if 'RIDAGEYR' in df.columns:
+        before = len(df)
+        df = df[df['RIDAGEYR'] >= 18].copy()
+        print(f"Filtered to adults: {before} -> {len(df)}")
+    
     print(f"Original columns: {df.shape[1]}")
     
     # Find which variables exist in the dataset
-    existing_vars = [var for var in ESSENTIAL_VARIABLES if var in df.columns]
+    existing_vars = []
+    for var in ESSENTIAL_VARIABLES:
+        if var in df.columns and var not in existing_vars:
+            existing_vars.append(var)
     missing_vars = [var for var in ESSENTIAL_VARIABLES if var not in df.columns]
     
     print(f"\nVariables found: {len(existing_vars)}/{len(ESSENTIAL_VARIABLES)}")
@@ -190,7 +216,24 @@ def cleanup_nhanes_data():
     # Drop columns with more than 50% missing data
     print("\nDropping columns with >50% missing data...")
     missing_pct = (df_cleaned.isnull().sum() / len(df_cleaned)) * 100
-    cols_to_drop = missing_pct[missing_pct > 50].index.tolist()
+    
+    protected_cols = {
+        'mortstat', 
+        'diabetes', 
+        'hyperten', 
+        'permth_exm', 
+        'permth_int', 
+        'died', 
+        'SDMVSTRA', 
+        'SDMVPSU', 
+        'WTMEC2YR',
+        'WTINT2YR'
+    }
+
+    cols_to_drop = [
+        col for col in missing_pct[missing_pct > 50].index
+        if col not in protected_cols
+    ]
     
     if cols_to_drop:
         print(f"  Dropping {len(cols_to_drop)} columns:")
@@ -205,11 +248,29 @@ def cleanup_nhanes_data():
     # Drop rows with more than 60% missing data
     print("\nDropping rows with >60% missing data...")
     initial_rows = len(df_cleaned)
-    threshold = df_cleaned.shape[1] * 0.6
-    df_cleaned = df_cleaned.dropna(thresh=threshold)
-    rows_dropped = initial_rows - len(df_cleaned)
-    print(f"  Dropped {rows_dropped:,} rows ({(rows_dropped/initial_rows)*100:.1f}%)")
-    print(f"  ✓ Remaining rows: {len(df_cleaned):,}")
+    
+    print("\nDropping rows with >60% missing feature data...")
+
+    core_cols = [
+        'SEQN', 'time', 'event', 'mortstat', 'permth_exm', 'permth_int', 'eligstat'
+    ]
+    core_cols = [c for c in core_cols if c in df_cleaned.columns]
+
+    feature_cols = [c for c in df_cleaned.columns if c not in core_cols]
+
+    if feature_cols:
+        initial_rows = len(df_cleaned)
+        # Count non-missing feature values per row
+        nonmissing_features = df_cleaned[feature_cols].notna().sum(axis=1)
+        feature_threshold = int(len(feature_cols) * 0.4)  # require at least 40% of features
+
+        df_cleaned = df_cleaned[nonmissing_features >= feature_threshold].copy()
+
+        rows_dropped = initial_rows - len(df_cleaned)
+        print(f"  Dropped {rows_dropped:,} rows ({rows_dropped/initial_rows*100:.1f}%) based on features")
+        print(f"  Remaining rows: {len(df_cleaned):,}")
+    else:
+        print("  No feature columns; skipping row-wise missingness filtering")
     
     # Create averaged blood pressure variables
     print("\nCreating averaged blood pressure variables...")
@@ -230,6 +291,34 @@ def cleanup_nhanes_data():
         # Drop individual readings
         df_cleaned = df_cleaned.drop(columns=diastolic_cols)
     
+    
+    print("\nCreating survival analysis variables (time, event)...")
+
+    # Time in months: prefer exam-based follow-up if available
+    if 'permth_exm' in df_cleaned.columns:
+        df_cleaned['time'] = df_cleaned['permth_exm'].astype('float')
+    elif 'permth_int' in df_cleaned.columns:
+        df_cleaned['time'] = df_cleaned['permth_int'].astype('float')
+    else:
+        print("  WARNING: permth_exm/permth_int not found; 'time' will be missing.")
+        df_cleaned['time'] = pd.NA
+
+    # Event indicator: 1 = died, 0 = censored
+    if 'mortstat' in df_cleaned.columns:
+        # Public-use LMF: 0=assumed alive, 1=assumed deceased, missing=not linkage-eligible
+        df_cleaned['event'] = (df_cleaned['mortstat'] == 1).astype('int')
+    elif 'died' in df_cleaned.columns:
+        df_cleaned['event'] = df_cleaned['died'].astype('int')
+    else:
+        print("  WARNING: mortstat/died not found; 'event' will be missing.")
+        df_cleaned['event'] = pd.NA
+        
+    if {'time', 'event'}.issubset(df_cleaned.columns):
+        before = len(df_cleaned)
+        df_cleaned = df_cleaned[df_cleaned['time'].notna() & df_cleaned['event'].notna()].copy()
+        df_cleaned = df_cleaned[df_cleaned['time'] > 0].copy()
+        print(f"Filtered to rows with valid time & event: {before} -> {len(df_cleaned)}")
+        
     print(f"\nFinal dataset shape after averaging: {df_cleaned.shape}")
     
     # Save cleaned dataset
@@ -260,6 +349,11 @@ def cleanup_nhanes_data():
             print(f"  {var}: {count:,} ({pct:.1f}%)")
     else:
         print("\n✓ No missing values found")
+        
+    assert df_cleaned['time'].min() > 0, "Found non-positive survival times"
+    assert set(df_cleaned['event'].unique()) <= {0, 1}, "Event must be 0/1 only"
+    assert set(df_cleaned['mortstat'].dropna().unique()) <= {0, 1}, "mortstat must be 0/1 in final dataset"
+
 
 if __name__ == "__main__":
     cleanup_nhanes_data()
