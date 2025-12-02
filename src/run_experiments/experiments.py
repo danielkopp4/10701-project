@@ -47,7 +47,7 @@ def run_experiments(
                         experiment=experiment,
                         target_feature=target_feature,
                         verbose=verbose,
-                        test_causal=(dataset_name == "nhanes_synthetic")
+                        test_causal=(dataset_name == "nhanes-synthetic")
                     )
                     art.save(
                         get_experiment_artifacts_path(experiment.name)
@@ -55,13 +55,13 @@ def run_experiments(
                     artifacts_by_name[experiment.name] = art
     
     datasets = [
-        ("nhanes_real", real_data),
-        ("nhanes_synthetic", synth_data),
+        ("nhanes-real", real_data),
+        ("nhanes-synthetic", synth_data),
     ]
     
     preprocessors = [
-        ("exclude_downstream", NHANESPreprocessor(exclude_downstream=True)),
-        ("exclude_all", NHANESPreprocessor(exclude_all=True)), # standard approach
+        ("exclude-downstream", NHANESPreprocessor(exclude_downstream=True)),
+        ("exclude-all", NHANESPreprocessor(exclude_all=True)), # standard approach
         # ("include_all", False), # requires higher alpha 
     ]
     
@@ -77,8 +77,8 @@ def run_experiments(
     )
     evaluate_experiments(
         datasets, 
-        [("include_all", NHANESPreprocessor(exclude_downstream=False))], 
-        [("cox (strong reg)", Cox(alpha=1.0))], 
+        [("include-all", NHANESPreprocessor(exclude_downstream=False))], 
+        [("cox-strong-reg", Cox(alpha=1.0))], 
         A_strata=50, name_prefix="naive_"
     )
     
