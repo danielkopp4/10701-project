@@ -1,70 +1,84 @@
-from .constructs import Experiment, ExperimentArtifacts
-from .synthetic_data_generator import simulate_I_ground_truth_counterfactuals
-from sklearn.metrics import accuracy_score
+# evaluation.py
+from __future__ import annotations
+
+from typing import Optional, Sequence
+
 import numpy as np
-from sksurv.metrics import (
-    concordance_index_censored,
-    integrated_brier_score,
-)
+from sksurv.metrics import concordance_index_censored, integrated_brier_score
+
+from .constructs import Experiment, ExperimentArtifacts, Preprocessor, IdentityPreprocessor
+from .synthetic_data.simulator import simulate_I_ground_truth_counterfactuals
+
 
 def _extract_event_time(y):
-    # if using sksurv Surv, the field names are exactly 'event' and 'time'.
+    # y is sksurv Surv array with fields 'event' and 'time'
     event = np.asarray(y["event"], dtype=bool)
     time = np.asarray(y["time"], dtype=float)
     return event, time
 
 
-def _predict_survival_matrix(model, X, time_grid=None):
+def _predict_survival_matrix(model, X_proc, time_grid=None):
     """
-    Convert model.predict_survival_function(X) into:
+    Convert model.predict_survival_function(X_proc) into:
       - times: 1D array of time points
       - surv: 2D array of survival probabilities (n_samples, n_times)
-
-    Works with scikit-survival estimators that return StepFunction objects.
     """
     if not hasattr(model, "predict_survival_function"):
         return None, None
 
-    surv_funcs = model.predict_survival_function(X)
+    surv_funcs = model.predict_survival_function(X_proc)
 
-    # If caller didn’t provide a time grid, build one from all functions
     if time_grid is None:
         all_times = np.unique(
             np.concatenate([fn.x for fn in surv_funcs])
         )
         time_grid = all_times
 
-    # Evaluate each survival function on the common grid
     surv_matrix = np.row_stack([fn(time_grid) for fn in surv_funcs])
-
     return time_grid, surv_matrix
+
 
 def _compute_individual_index(
     model,
-    X,
+    preprocessor,   # Preprocessor
+    X_raw,
     time_grid,
     t_eval,
     A_name: str,
-    A_values=None,
+    A_values: Optional[Sequence] = None,
 ):
+    """
+    Compute prediction-based individual index
+
+        I_i(T) = p_i(A_obs, T) - min_a p_i(a, T)
+
+    using model + preprocessor. Robust to missing A (e.g. NaN weight):
+    rows with missing A get NaN for I_i and p_obs.
+    """
     if A_values is None:
-        A_values = np.sort(X[A_name].unique())
+        A_values = np.sort(X_raw[A_name].dropna().unique())
 
     A_values = list(A_values)
-    n_samples = X.shape[0]
+    if len(A_values) == 0:
+        raise ValueError(
+            f"_compute_individual_index: no non-missing values found for A={A_name}"
+        )
+
+    n_samples = X_raw.shape[0]
     n_levels = len(A_values)
 
     rows = []
     for i in range(n_samples):
-        x_i = X.iloc[i]
+        x_i = X_raw.iloc[i]
         for a in A_values:
             x_cf = x_i.copy()
             x_cf[A_name] = a
             rows.append(x_cf)
 
-    X_cf = X.__class__(rows)
+    X_cf_raw = X_raw.__class__(rows)
+    X_cf_proc = preprocessor.transform(X_cf_raw)
 
-    surv_cf_list = model.predict_survival_function(X_cf)
+    surv_cf_list = model.predict_survival_function(X_cf_proc)
 
     t_idx = int(np.argmin(np.abs(time_grid - t_eval)))
     t_eval_actual = float(time_grid[t_idx])
@@ -75,56 +89,62 @@ def _compute_individual_index(
     ])  # shape (n_samples * n_levels,)
     event_probs_cf = event_probs_cf.reshape(n_samples, n_levels)
 
+    # min_a p_i(a, T_eval)
     min_test_P_i = event_probs_cf.min(axis=1)
 
     A_to_idx = {a: j for j, a in enumerate(A_values)}
-    a_obs = X[A_name]
-    obs_idx = np.array([A_to_idx[a] for a in a_obs])
+    a_obs = X_raw[A_name]
+    valid_mask = a_obs.notna()
 
-    p_obs = event_probs_cf[np.arange(n_samples), obs_idx]
+    if not valid_mask.any():
+        raise ValueError(
+            f"_compute_individual_index: all values of A={A_name} are missing for this split"
+        )
 
-    pred_index = p_obs - min_test_P_i
+    idx_valid = np.where(valid_mask)[0]
+    obs_idx_valid = np.array([A_to_idx[val] for val in a_obs[valid_mask]])
+
+    # p_i(A_obs, T_eval), NaN for rows with missing A
+    p_obs = np.full(n_samples, np.nan, dtype=float)
+    p_obs[idx_valid] = event_probs_cf[idx_valid, obs_idx_valid]
+
+    # I_i(T) = p_obs - min_a p_i(a, T_eval), NaN where p_obs is NaN
+    pred_index = np.full(n_samples, np.nan, dtype=float)
+    pred_index[idx_valid] = p_obs[idx_valid] - min_test_P_i[idx_valid]
 
     return pred_index, min_test_P_i, p_obs, A_values, t_eval_actual
 
 
-def evaluate_experiment(data, 
-                        experiment: Experiment, 
-                        sensitive_attr: str = "weight",   # name of A in X
-                        sensitive_levels=None,
-                        verbose=True, 
-                        test_causal=True
-                    ) -> ExperimentArtifacts:
-    """
-    Given some model and training procedure, run evaluation criteria on it to see
-    how well it fares.
-    Data can either be purely real, purely synthetic, or a mix of both.
+def evaluate_experiment(
+    data,
+    experiment: Experiment,
+    sensitive_attr: str = "BMXWT",   # name of A in raw X
+    sensitive_levels: Optional[Sequence] = None,
+    verbose: bool = True,
+    test_causal: bool = True,
+) -> ExperimentArtifacts:
+    artifacts = ExperimentArtifacts(experiment=experiment)
 
-    Evaluation criteria:
-    - intermediate criteria on prediction quality for real data + synthetic
-    - internal consistency on synthetic benchmarks
+    # raw data from loader
+    train_X_raw, train_y, test_X_raw, test_y = data
+    artifacts.append_data({"name": "dataset_raw", "data": data})
 
-    From this we will generate artifacts that can be used during analysis.
-    All results from evaluation will be stored in addition to the trained models
-    for the purpose of generating plots.
-    """
-    # one factor of evaluation is to see regression performance on real data
-    # another is to see how well it captures known structure in synthetic data
-    # the final factor is to see how well it captures causal factors in synthetic data
-    artifacts = ExperimentArtifacts()
-    
-    # split the train and test data
-    train_X, train_y, test_X, test_y = data
-    artifacts.append_data({"name": "dataset", "data": data})
-    
-    # train the model
+    # preprocessing
+    preproc: Preprocessor = experiment.preprocessor or IdentityPreprocessor()
+    preproc.fit(train_X_raw, train_y)
+
+    train_X = preproc.transform(train_X_raw)
+    test_X = preproc.transform(test_X_raw)
+
+    artifacts.set_preprocessor(preproc)
+    artifacts.append_data({"name": "feature_names", "data": getattr(preproc, "feature_cols_", None)})
+
+    # train model
     model = experiment.model
     model.train(train_X, train_y, test_X, test_y)
     artifacts.set_model(model)
-    
-    ## Evaluate IID ##
-    
-    # generate risk scores - any 1D ranking of individuals (higher = worse)
+
+    # IID evaluation
     test_risk = model.predict(test_X)
     train_risk = model.predict(train_X)
     artifacts.append_data({"name": "train_risk_scores", "data": train_risk})
@@ -132,7 +152,6 @@ def evaluate_experiment(data,
 
     event_test, time_test = _extract_event_time(test_y)
 
-    # harrell's C-index
     cindex, n_conc, n_disc, n_tied_risk, n_tied_time = concordance_index_censored(
         event_indicator=event_test,
         event_time=time_test,
@@ -145,17 +164,20 @@ def evaluate_experiment(data,
     artifacts.append_metric({"name": "test_cindex_tied_risk_pairs", "data": int(n_tied_risk)})
     artifacts.append_metric({"name": "test_cindex_tied_time_pairs", "data": int(n_tied_time)})
 
-    # survival curves - only available if model can predict survival functions
+    # survival curves (processed X)
     time_grid = None
     surv_test = None
     surv_train = None
 
     if hasattr(model, "predict_survival_function"):
-        _, time_train = _extract_event_time(train_y)
-        t_min = float(np.min(time_train))
-        t_max = float(np.max(time_train))
+        event_train, time_train = _extract_event_time(train_y)
+        event_test, time_test = _extract_event_time(test_y)
 
-        time_grid = np.linspace(t_min, t_max, 50)
+        t_min = float(np.min(time_test))
+        t_max = float(np.max(time_test))
+
+        time_grid = np.linspace(t_min, t_max, 50, endpoint=False)
+
         time_grid, surv_test = _predict_survival_matrix(model, test_X, time_grid=time_grid)
         _, surv_train = _predict_survival_matrix(model, train_X, time_grid=time_grid)
 
@@ -171,31 +193,27 @@ def evaluate_experiment(data,
         )
         artifacts.append_metric({"name": "test_integrated_brier_score", "data": float(ibs)})
 
-    ## Compute Indices ##
+    # estimated index
     pred_index = None
+    pred_pop_index = None
 
     if surv_test is not None and time_grid is not None:
-        t_eval = experiment.T_eval # float(np.median(time_test))
-        
+        t_eval = float(experiment.T_eval)
+
         pred_index, min_test_P_i, p_obs, A_values, t_eval_actual = _compute_individual_index(
             model=model,
-            X=test_X,
+            preprocessor=preproc,
+            X_raw=test_X_raw,
             time_grid=time_grid,
             t_eval=t_eval,
             A_name=sensitive_attr,
             A_values=sensitive_levels,
         )
 
-        pred_pop_index = float(np.mean(pred_index))
+        pred_pop_index = float(np.nanmean(pred_index))
 
-        artifacts.append_data({
-            "name": "predicted_risk_index",
-            "data": pred_index,
-        })
-        artifacts.append_data({
-            "name": "predicted_min_event_prob_per_individual",
-            "data": min_test_P_i,
-        })
+        artifacts.append_data({"name": "predicted_risk_index", "data": pred_index})
+        artifacts.append_data({"name": "predicted_min_event_prob_per_individual", "data": min_test_P_i})
         artifacts.append_data({
             "name": "predicted_event_prob_at_eval_time_obs_A",
             "data": {
@@ -206,37 +224,61 @@ def evaluate_experiment(data,
                 "attr_values": A_values,
             },
         })
-        artifacts.append_data({
-            "name": "predicted_risk_pop_index",
-            "data": pred_pop_index,
-        })
-    
-    ## Evaluate Causal ##
-    if test_causal and pred_index is not None:
-        gt_index = simulate_I_ground_truth_counterfactuals(test_X)
-        gt_index = np.asarray(gt_index, dtype=float)
+        artifacts.append_data({"name": "predicted_risk_pop_index", "data": pred_pop_index})
 
-        gt_pop_index = float(np.mean(gt_index))
+    # causal evaluation vs simulator oracle (synthetic only)
+    if test_causal and (pred_index is not None):
+        T_eval_int = int(round(experiment.T_eval))
+
+        I_df = simulate_I_ground_truth_counterfactuals(test_X_raw, T_eval=T_eval_int)
+        gt_index = np.asarray(I_df["I_i"], dtype=float)
+
+        # Population index for oracle, ignoring any NaNs
+        gt_pop_index = float(np.nanmean(gt_index))
 
         artifacts.append_data({"name": "gt_risk_index", "data": gt_index})
         artifacts.append_data({"name": "gt_risk_pop_index", "data": gt_pop_index})
 
-        # Metrics comparing predicted vs. ground-truth index
-        # Pearson correlation
-        if pred_index.shape == gt_index.shape:
-            corr = float(np.corrcoef(pred_index, gt_index)[0, 1])
-        else:
-            print("ERROR: shape mismatch when computing correlation between predicted and ground-truth risk index.")
-            return None
+        if pred_index.shape != gt_index.shape:
+            print(
+                "ERROR: shape mismatch between predicted and ground-truth "
+                "risk index; not computing correlation."
+            )
+            return artifacts
 
-        pop_index_diff = float(np.abs(pred_pop_index - gt_pop_index))
-        rmse = float(np.sqrt(np.mean((pred_index - gt_index) ** 2)))
+        # Align on entries that are non-NaN in both arrays
+        common_mask = ~np.isnan(pred_index) & ~np.isnan(gt_index)
+        n_common = int(common_mask.sum())
+
+        if n_common == 0:
+            print(
+                "WARNING: no overlapping non-NaN entries for pred vs gt index; "
+                "causal comparison metrics set to NaN."
+            )
+            corr = float("nan")
+            pop_index_diff = float("nan")
+            rmse = float("nan")
+        else:
+            corr = float(np.corrcoef(pred_index[common_mask], gt_index[common_mask])[0, 1])
+
+            pop_index_diff = float(
+                np.abs(
+                    np.nanmean(pred_index) - np.nanmean(gt_index)
+                )
+            )
+
+            rmse = float(
+                np.sqrt(
+                    np.mean((pred_index[common_mask] - gt_index[common_mask]) ** 2)
+                )
+            )
 
         artifacts.append_metric({"name": "pred_vs_gt_index_corr", "data": corr})
         artifacts.append_metric({"name": "pred_vs_gt_pop_index_diff", "data": pop_index_diff})
         artifacts.append_metric({"name": "pred_vs_gt_index_rmse", "data": rmse})
-    
+
+
     if verbose:
         artifacts.print_summary()
-    
+
     return artifacts
