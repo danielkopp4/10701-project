@@ -17,8 +17,6 @@ def load_nhanes_survival(
     extra_exclude_cols: Optional[list[str]] = None,
 ) -> Tuple[pd.DataFrame, np.ndarray, pd.DataFrame, np.ndarray]:
     """
-    Load the cleaned NHANES dataset for survival analysis.
-
     Returns (train_X, train_y, test_X, test_y) where:
     X are pandas DataFrames of covariates
     y are sksurv.util.Surv objects with (event, time)
@@ -31,12 +29,11 @@ def load_nhanes_survival(
 
     # load data
     df = pd.read_csv(csv_path)
-    n_raw = len(df)
+    df = df.dropna(subset=[time_col, event_col, "BMXWT"])
 
-    # Basic presence checks
     for col in (time_col, event_col):
         if col not in df.columns:
-            raise KeyError(f"Required column `{col}` not found in {csv_path}")
+            raise KeyError(f"required column `{col}` not found in {csv_path}")
 
     # final survival filtering
     mask_valid = df[time_col].notna() & df[event_col].notna()
@@ -46,9 +43,9 @@ def load_nhanes_survival(
     n_valid = len(df)
 
     if n_valid == 0:
-        raise ValueError("No rows with valid (time > 0, non-missing event).")
+        raise ValueError("no rows with valid (time > 0, non-missing event)")
 
-    # Ensure event is 0/1
+    # ensure event is 0/1
     unique_events = set(df[event_col].dropna().unique())
     if not unique_events.issubset({0, 1}):
         raise ValueError(f"`{event_col}` must be in {{0,1}}, got: {unique_events}")
@@ -64,7 +61,7 @@ def load_nhanes_survival(
         "eligstat",    # linkage eligibility
     }
 
-    # Do not use ID as a feature by default
+    # do not use ID as a feature by default
     if id_col is not None:
         base_exclude.add(id_col)
 
@@ -75,7 +72,7 @@ def load_nhanes_survival(
     feature_cols = [c for c in df.columns if c not in exclude_cols]
 
     if not feature_cols:
-        raise ValueError("No feature columns remaining after exclusion.")
+        raise ValueError("no feature columns remaining after exclusion")
 
     X_all = df[feature_cols].copy()
 
