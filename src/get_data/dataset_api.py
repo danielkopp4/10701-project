@@ -21,7 +21,7 @@ def load_nhanes_survival(
 
     Returns (train_X, train_y, test_X, test_y) where:
     X are pandas DataFrames of covariates
-    y are sksurv.util.Surv structured arrays with fields ('event', 'time')
+    y are sksurv.util.Surv objects with (event, time)
     """
 
     csv_path = Path(csv_path)
@@ -99,7 +99,6 @@ def load_nhanes_survival(
     return X_train, y_train, X_test, y_test
 
 if __name__ == "__main__":
-    # Example usage
     from dotenv import load_dotenv
     load_dotenv('config.env')
     csv_path = Path(os.getenv('PROCESSED_DATA_PATH', 'data/processed'))

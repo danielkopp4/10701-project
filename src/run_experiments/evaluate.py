@@ -8,11 +8,7 @@ from sksurv.metrics import (
 )
 
 def _extract_event_time(y):
-    """
-    y: structured array (e.g. sksurv.util.Surv) with fields 'event' and 'time'.
-    Returns (event_indicator, event_time) as 1D numpy arrays.
-    """
-    # If using sksurv Surv, the field names are exactly 'event' and 'time'.
+    # if using sksurv Surv, the field names are exactly 'event' and 'time'.
     event = np.asarray(y["event"], dtype=bool)
     time = np.asarray(y["time"], dtype=float)
     return event, time
@@ -136,7 +132,7 @@ def evaluate_experiment(data,
 
     event_test, time_test = _extract_event_time(test_y)
 
-    # Harrell's C-index (rank-based performance)
+    # harrell's C-index
     cindex, n_conc, n_disc, n_tied_risk, n_tied_time = concordance_index_censored(
         event_indicator=event_test,
         event_time=time_test,
