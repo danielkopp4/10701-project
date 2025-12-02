@@ -21,6 +21,9 @@ ALWAYS_EXCLUDE_COLS: Set[str] = {
     "permth_int",
     "permth_exm",
     "eligstat",
+    # “cheating” markers: direct proxies for hazard (synthetic only)
+    "disease",
+    "prob_disease",
 }
 
 # columns potentially causally downstream of weight / adiposity:
@@ -56,10 +59,7 @@ DOWNSTREAM_OF_WEIGHT_COLS: Set[str] = {
     "CDQ001", "CDQ002", "CDQ003", "CDQ004", "CDQ005", "CDQ006", "CDQ008", "CDQ010",
 
     # Dataset-level outcome flags
-    "diabetes", "hyperten",
-
-    # Synthetic-only downstream markers
-    "disease", "prob_disease",
+    "diabetes", "hyperten"
 }
 
 class ClipTransformer(BaseEstimator, TransformerMixin):

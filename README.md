@@ -20,3 +20,9 @@ TODO:
 - [ ] add more models 
 - [ ] add more experiments
 - [ ] validate outcomes of the analysis
+
+
+Experiments we should run
+- BMI only + cox model (baseline, standard for medicine)
+- BMI + latent common cause (recommended by masters et al) + all model types
+- All available features (naive approach, will have better IID performance but worse causal performance)

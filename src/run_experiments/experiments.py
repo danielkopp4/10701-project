@@ -20,8 +20,13 @@ def run_experiments(
     T_eval_months = T_eval_years * 12.0
     artifacts_by_name: Dict[str, ExperimentArtifacts] = {}
 
-    # real NHANES
     real_data = load_nhanes_survival(csv_path=nhanes_csv_path)
+    synth_data = load_nhanes_survival_simulated(
+        n=synthetic_n
+    )
+    
+    
+    # real NHANES
     real_preproc = NHANESPreprocessor(
         exclude_downstream=True,
         impute_strategy="median",
@@ -47,9 +52,6 @@ def run_experiments(
     artifacts_by_name[exp_real.name] = art_real
 
     # synthetic NHANES
-    synth_data = load_nhanes_survival_simulated(
-        n=synthetic_n
-    )
     synth_preproc = NHANESPreprocessor(
         exclude_downstream=True,
         impute_strategy="median",
@@ -125,5 +127,56 @@ def run_experiments(
         test_causal=True
     )
     artifacts_by_name[exp_synth_2.name] = art_synth
+    
+    # ---------------------------------------------------------
+    
+    real_preproc_3 = NHANESPreprocessor(
+        exclude_downstream=False,
+        impute_strategy="median",
+    )
+    real_model_3 = Cox(alpha=1) # alpha to avioid overflow
+
+    exp_real_3 = Experiment(
+        name="cox_real_nhanes_naive",
+        model=real_model_3,
+        preprocessor=real_preproc_3,
+        T_eval=T_eval_months,
+        metadata={"dataset": "nhanes_real"},
+    )
+
+    art_real = evaluate_experiment(
+        data=real_data,
+        experiment=exp_real_3,
+        sensitive_attr=sensitive_attr,
+        sensitive_levels=None,
+        verbose=verbose,
+        test_causal=False,  # no simulator oracle for real data
+    )
+    artifacts_by_name[exp_real_3.name] = art_real
+    
+    # synthetic NHANES
+    synth_preproc_3 = NHANESPreprocessor(
+        exclude_downstream=False,
+        impute_strategy="median",
+    )
+    synth_model_3 = Cox(alpha=1)  # alpha to avioid overflow
+
+    exp_synth_3 = Experiment(
+        name="cox_synthetic_nhanes_naive",
+        model=synth_model_3,
+        preprocessor=synth_preproc_3,
+        T_eval=T_eval_months,
+        metadata={"dataset": "nhanes_synthetic"},
+    )
+
+    art_synth = evaluate_experiment(
+        data=synth_data,
+        experiment=exp_synth_3,
+        sensitive_attr=sensitive_attr,
+        sensitive_levels=None,
+        verbose=verbose,
+        test_causal=True
+    )
+    artifacts_by_name[exp_synth_3.name] = art_synth
 
     return artifacts_by_name
