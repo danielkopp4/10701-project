@@ -46,13 +46,16 @@ def download_mortality():
             print(f"  {url}")
             print(f"And place in: {data_dir}")
             return None
+    
+    data_dir = Path(os.getenv("RAW_DATA_PATH", "data/raw"))
 
     print("="*80)
     print("MERGING NHANES DATA WITH MORTALITY OUTCOMES")
     print("="*80)
 
     # Load NHANES data
-    nhanes_file = Path("../nhanes_2017_2018_merged.csv")
+    # nhanes_file = Path("../nhanes_2017_2018_merged.csv")
+    nhanes_file = data_dir / "nhanes_2017_2018_merged.csv"
 
     if not nhanes_file.exists():
         print("\n✗ NHANES data not found. Please run download_nhanes.py first.")
@@ -70,7 +73,6 @@ def download_mortality():
     # NHANES cycles to download mortality data for
     cycles_to_download = ["2017-2018"]
 
-    data_dir = Path(os.getenv("RAW_DATA_PATH", "data/raw"))
     for cycle in cycles_to_download:
         download_mortality_file(cycle, data_dir)
 
