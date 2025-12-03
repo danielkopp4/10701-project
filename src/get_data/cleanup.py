@@ -240,9 +240,9 @@ def cleanup_nhanes_data():
             pct = missing_pct[col]
             print(f"    - {col}: {pct:.1f}% missing")
         df_cleaned = df_cleaned.drop(columns=cols_to_drop)
-        print(f"  ✅ Columns after dropping: {df_cleaned.shape[1]}")
+        print(f"  Columns after dropping: {df_cleaned.shape[1]}")
     else:
-        print("  ✅ No columns with >50% missing data")
+        print("  No columns with >50% missing data")
     
     # Drop rows with more than 60% missing data
     print("\nDropping rows with >60% missing data...")
@@ -278,7 +278,7 @@ def cleanup_nhanes_data():
     systolic_cols = [col for col in ['BPXSY1', 'BPXSY2', 'BPXSY3', 'BPXSY4'] if col in df_cleaned.columns]
     if systolic_cols:
         df_cleaned['BPXSY'] = df_cleaned[systolic_cols].mean(axis=1, skipna=True)
-        print(f"  ✅ Created BPXSY (average of {len(systolic_cols)} readings)")
+        print(f"  Created BPXSY (average of {len(systolic_cols)} readings)")
         # Drop individual readings
         df_cleaned = df_cleaned.drop(columns=systolic_cols)
     
@@ -286,7 +286,7 @@ def cleanup_nhanes_data():
     diastolic_cols = [col for col in ['BPXDI1', 'BPXDI2', 'BPXDI3', 'BPXDI4'] if col in df_cleaned.columns]
     if diastolic_cols:
         df_cleaned['BPXDI'] = df_cleaned[diastolic_cols].mean(axis=1, skipna=True)
-        print(f"  ✅ Created BPXDI (average of {len(diastolic_cols)} readings)")
+        print(f"  Created BPXDI (average of {len(diastolic_cols)} readings)")
         # Drop individual readings
         df_cleaned = df_cleaned.drop(columns=diastolic_cols)
     
@@ -324,7 +324,7 @@ def cleanup_nhanes_data():
     print(f"\nSaving cleaned data to: {output_file}")
     df_cleaned.to_csv(output_file, index=False)
     
-    print("✅ Data cleanup complete!")
+    print("Data cleanup complete!")
     
     # Print summary statistics
     print("\n" + "="*60)
@@ -347,7 +347,7 @@ def cleanup_nhanes_data():
             pct = (count / len(df_cleaned)) * 100
             print(f"  {var}: {count:,} ({pct:.1f}%)")
     else:
-        print("\n✅ No missing values found")
+        print("\nNo missing values found")
         
     assert df_cleaned['time'].min() > 0, "Found non-positive survival times"
     assert set(df_cleaned['event'].unique()) <= {0, 1}, "Event must be 0/1 only"
