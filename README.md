@@ -24,6 +24,7 @@ TODO:
 
 
 Experiments we should run
-- BMI only + cox model (baseline, standard for medicine)
+- BMI only + all models (baseline, standard for medicine)
+- Waist to height ratio + all models (proposed alternative)
 - BMI + latent common cause (recommended by masters et al) + all model types
 - All available features (naive approach, will have better IID performance but worse causal performance)

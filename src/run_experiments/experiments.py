@@ -60,8 +60,11 @@ def run_experiments(
     ]
     
     preprocessors = [
-        ("exclude-downstream", NHANESPreprocessor(exclude_downstream=True)),
-        ("exclude-all", NHANESPreprocessor(exclude_all=True)), # standard approach
+        ("only-exclude-downstream", NHANESPreprocessor(exclude_downstream=True)),
+        ("bmi-only", NHANESPreprocessor(exclude_all=True)), # standard approach
+        ("waist-to-height-only", NHANESPreprocessor(include_only_waist_to_height=True)),
+        ("intake-form", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True)),
+        ("intake-feasible", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True)),
         # ("include_all", False), # requires higher alpha 
     ]
     
@@ -75,9 +78,10 @@ def run_experiments(
         models, 
         A_strata=50
     )
+    
     evaluate_experiments(
         datasets, 
-        [("include-all", NHANESPreprocessor(exclude_downstream=False))], 
+        [("include-all", NHANESPreprocessor())], 
         [("cox-strong-reg", Cox(alpha=1.0))], 
         A_strata=50, name_prefix="naive_"
     )

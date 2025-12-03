@@ -62,6 +62,49 @@ DOWNSTREAM_OF_WEIGHT_COLS: Set[str] = {
     "diabetes", "hyperten"
 }
 
+INTAKE_FEASIBLE_COLS: Set[str] = {
+    # Demographics / SES (intake survey)
+    "RIDAGEYR",     # age
+    "RIAGENDR",     # sex
+    "RIDRETH3",     # race/ethnicity
+    "DMDEDUC2",     # education
+    "INDFMPIR",     # income-to-poverty ratio
+    
+    # Anthropometrics (measured/surveyed at intake)
+    "BMXWT",        # weight
+    "BMXHT",        # height
+    "BMXBMI",       # BMI
+
+    # Weight history (self-report)
+    "WHD010", "WHD020", "WHD050", "WHD140",
+
+    # Smoking / alcohol (questionnaires)
+    "SMQ020", "SMQ040",
+    "ALQ121", "ALQ130",
+
+    # Diet / PA (questionnaires)
+    "DBD895", "DBD900",
+    "PAQ605", "PAQ620", "PAQ635", "PAQ650", "PAQ665",
+
+    # Simple medical history (questionnaires)
+    "MCQ080", "MCQ160B", "MCQ160C", "MCQ160D", "MCQ160E",
+    "MCQ160L", "MCQ160M", "MCQ160N",
+    "MCQ300A", "MCQ300C",
+
+    # Diabetes questionnaire
+    "DIQ010", "DIQ160", "DIQ170", "DIQ172", "DIQ050", "DIQ070", "DIQ230",
+}
+
+BASIC_EXAM_COLS: Set[str] = {
+    # Anthropometrics that are low burden (clinic intake / basic exam)
+    "BMXWAIST",     # waist circumference
+    "BMXTHICR",     # thigh circumference
+    "ABSI",         # A Body Shape Index
+    "ICO",          # Index of Central Obesity
+    "BRI",          # Body Roundness Index
+    "WTR",          # waist-to-thigh ratio
+}
+
 class ClipTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, clip_min: float = -5.0, clip_max: float = 5.0):
         self.clip_min = clip_min
@@ -94,12 +137,18 @@ class NHANESPreprocessor(Preprocessor):
 
     def __init__(
         self,
-        exclude_downstream: bool = True,
-        exclude_all: bool = False,
+        exclude_downstream: bool = False, # excludes variables causally downstream of weight
+        include_only_waist_to_height: bool = False, # only keeps waist-to-height ratio
+        include_only_bmi: bool = False, # only keeps BMI
+        include_only_intake: bool = False, # only keeps variables feasible to collect at intake survey
+        include_only_intake_and_basic: bool = False, # only keeps variables feasible to collect at intake survey + basic exam
         impute_strategy: str = "median",
     ):
         self.exclude_downstream = exclude_downstream
-        self.exclude_all = exclude_all
+        self.include_only_waist_to_height = include_only_waist_to_height
+        self.include_only_bmi = include_only_bmi
+        self.include_only_intake = include_only_intake
+        self.include_only_intake_and_basic = include_only_intake_and_basic
         self.impute_strategy = impute_strategy
 
         self.feature_cols_: List[str] | None = None
@@ -108,11 +157,26 @@ class NHANESPreprocessor(Preprocessor):
     def _select_feature_columns(self, X) -> List[str]:
         cols = list(X.columns)
         exclude = set(ALWAYS_EXCLUDE_COLS)
-        if self.exclude_all:
+        
+        if self.include_only_waist_to_height:
+            # exclude everything except for waist-to-height ratio
+            exclude |= {c for c in cols if c != "WTHR"}
+        
+        if self.include_only_intake:
+            include = INTAKE_FEASIBLE_COLS
+            exclude |= {c for c in cols if c not in include}
+        
+        if self.include_only_intake_and_basic:
+            include = INTAKE_FEASIBLE_COLS | BASIC_EXAM_COLS
+            exclude |= {c for c in cols if c not in include}
+        
+        if self.include_only_bmi:
             # exclude everything except for BMI
             exclude |= {c for c in cols if c != "BMXBMI"}
-        elif self.exclude_downstream:
+        
+        if self.exclude_downstream:
             exclude |= DOWNSTREAM_OF_WEIGHT_COLS
+        
         feature_cols = [c for c in cols if c not in exclude]
         if not feature_cols:
             raise ValueError(
