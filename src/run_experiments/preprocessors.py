@@ -131,7 +131,6 @@ class NHANESPreprocessor(Preprocessor):
     # TODO: add option to encode categorical variables differently
     # TODO: add option to create missingness indicators
     # TODO: add option to do more advanced imputation (e.g. KNN, MICE)
-    # TODO: add option to only include "easy to capture" features (intake survey only)
     # TODO: add option to include interaction terms, polynomial features, 
     #       transformations of weight / height to get a better BMI representation
 
@@ -159,8 +158,8 @@ class NHANESPreprocessor(Preprocessor):
         exclude = set(ALWAYS_EXCLUDE_COLS)
         
         if self.include_only_waist_to_height:
-            # exclude everything except for waist-to-height ratio
-            exclude |= {c for c in cols if c != "WTHR"}
+            include = {"BMXWAIST", "BMXHT"}
+            exclude |= {c for c in cols if c not in include}
         
         if self.include_only_intake:
             include = INTAKE_FEASIBLE_COLS

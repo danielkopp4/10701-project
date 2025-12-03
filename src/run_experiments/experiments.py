@@ -8,7 +8,7 @@ from ..get_data.dataset_api import load_nhanes_survival  # your real-data loader
 from .synthetic_data.simulator import (
     load_nhanes_survival_simulated
 )
-
+from copy import deepcopy
 
 def run_experiments(
     nhanes_csv_path: str,
@@ -32,11 +32,13 @@ def run_experiments(
         for dataset_name, dataset in datasets:
             for preproc_name, preprocessor in preprocessors:
                 for model_name, model in models:
+                    model_instance = deepcopy(model) # make sure to not share state
+                    preprocessor_instance = deepcopy(preprocessor)
                     exp_name = f"{name_prefix}{model_name}_{dataset_name}_{preproc_name}"
                     experiment = Experiment(
                         name=exp_name,
-                        model=model,
-                        preprocessor=preprocessor,
+                        model=model_instance,
+                        preprocessor=preprocessor_instance,
                         T_eval=T_eval,
                         A_strata=A_strata,
                         metadata={"dataset": dataset_name},
@@ -69,9 +71,9 @@ def run_experiments(
     ]
     
     models = [
-        ("cox", Cox(alpha=0.1)),
         ("gradient-boost", GradientBoosting()),
         ("random-forest", RandomSurvivalForest()),
+        ("cox", Cox(alpha=0.1)),
     ]
     
     evaluate_experiments(
@@ -84,7 +86,11 @@ def run_experiments(
     evaluate_experiments(
         datasets, 
         [("include-all", NHANESPreprocessor())], 
-        [("cox-strong-reg", Cox(alpha=1.0))], 
+        [
+            ("cox-strong-reg", Cox(alpha=1.0)), 
+            ("gradient-boost", GradientBoosting()),
+            ("random-forest", RandomSurvivalForest()),
+        ], 
         A_strata=50, name_prefix="naive_"
     )
     

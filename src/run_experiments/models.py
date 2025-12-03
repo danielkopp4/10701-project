@@ -40,7 +40,7 @@ class Cox(ModelWrapper):
 
 class GradientBoosting(ModelWrapper):
     def __init__(self, learning_rate: float = 0.1, n_estimators: int = 100, **kwargs):
-        super().__init__(name="GradientBoostingCoxPH")
+        super().__init__(name="GradientBoosting")
         self.learning_rate = learning_rate
         self.n_estimators = n_estimators
         self.kwargs = kwargs
@@ -54,7 +54,7 @@ class GradientBoosting(ModelWrapper):
 
     def _check_fitted(self):
         if not self._fitted:
-            raise RuntimeError("GradientBoostingCoxWrapper: model has not been trained yet.")
+            raise RuntimeError("GradientBoosting: model has not been trained yet.")
 
     def train(self, train_X, train_y, test_X=None, test_y=None):
         self.estimator.fit(train_X, train_y)
@@ -77,10 +77,10 @@ class GradientBoosting(ModelWrapper):
 class RandomSurvivalForest(ModelWrapper):
     def __init__(
         self,
-        n_estimators: int = 500,
-        min_samples_split: int = 10,
-        min_samples_leaf: int = 5,
-        max_depth: int | None = None,
+        n_estimators: int = 100,
+        min_samples_split: int = 50,
+        min_samples_leaf: int = 20,
+        max_depth: int | None = 10,
         max_features: str | int | float | None = "sqrt",
         n_jobs: int = -1,
         random_state: int = 0,
@@ -99,7 +99,7 @@ class RandomSurvivalForest(ModelWrapper):
 
     def _check_fitted(self):
         if not self._fitted:
-            raise RuntimeError("RandomSurvivalForestWrapper: model has not been trained yet.")
+            raise RuntimeError("RandomSurvivalForest: model has not been trained yet.")
 
     def train(self, train_X, train_y, test_X=None, test_y=None):
         self.estimator.fit(train_X, train_y)
@@ -109,7 +109,7 @@ class RandomSurvivalForest(ModelWrapper):
     def predict(self, X):
         self._check_fitted()
         expected_time = self.estimator.predict(X)
-        return -np.asarray(expected_time, dtype=float)
+        return np.asarray(expected_time, dtype=float)
 
     def predict_proba(self, X):
         scores = self.predict(X)

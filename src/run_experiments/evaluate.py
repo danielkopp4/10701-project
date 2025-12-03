@@ -203,7 +203,7 @@ def evaluate_experiment(
     pred_index = None
     pred_pop_index = None
 
-    if surv_test is not None and time_grid is not None:
+    if test_causal and surv_test is not None and time_grid is not None:
         t_eval = float(experiment.T_eval)
 
         pred_index, min_test_P_i, p_obs, A_values, t_eval_actual = _compute_individual_index(
@@ -232,8 +232,7 @@ def evaluate_experiment(
         })
         artifacts.append_data({"name": "predicted_risk_pop_index", "data": pred_pop_index})
 
-    # causal evaluation vs simulator oracle (synthetic only)
-    if test_causal and (pred_index is not None):
+        # causal evaluation vs simulator oracle
         T_eval_int = int(round(experiment.T_eval))
 
         I_df = simulate_I_ground_truth_counterfactuals(test_X_raw, T_eval=T_eval_int)
