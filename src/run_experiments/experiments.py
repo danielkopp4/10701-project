@@ -1,7 +1,7 @@
 from typing import Dict
 
 from ..common import Experiment, ExperimentArtifacts, get_experiment_artifacts_path
-from .models import Cox
+from .models import Cox, GradientBoosting, RandomSurvivalForest
 from .preprocessors import NHANESPreprocessor
 from .evaluate import evaluate_experiment
 from ..get_data.dataset_api import load_nhanes_survival  # your real-data loader
@@ -61,7 +61,7 @@ def run_experiments(
     
     preprocessors = [
         ("only-exclude-downstream", NHANESPreprocessor(exclude_downstream=True)),
-        ("bmi-only", NHANESPreprocessor(exclude_all=True)), # standard approach
+        ("bmi-only", NHANESPreprocessor(include_only_bmi=True)), # standard approach
         ("waist-to-height-only", NHANESPreprocessor(include_only_waist_to_height=True)),
         ("intake-form", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True)),
         ("intake-feasible", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True)),
@@ -70,6 +70,8 @@ def run_experiments(
     
     models = [
         ("cox", Cox(alpha=0.1)),
+        ("gradient-boost", GradientBoosting()),
+        ("random-forest", RandomSurvivalForest()),
     ]
     
     evaluate_experiments(

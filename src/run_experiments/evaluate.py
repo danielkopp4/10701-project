@@ -177,7 +177,6 @@ def evaluate_experiment(
     surv_train = None
 
     if hasattr(model, "predict_survival_function"):
-        event_train, time_train = _extract_event_time(train_y)
         event_test, time_test = _extract_event_time(test_y)
 
         t_min = float(np.min(time_test))
