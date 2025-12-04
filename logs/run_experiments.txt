@@ -1,0 +1,345 @@
+Experiment Artifacts Summary: svm_nhanes-real_only-exclude-downstream
+Metrics:
+ - test_cindex: 0.8637132703441526
+ - test_cindex_concordant_pairs: 21422488
+ - test_cindex_discordant_pairs: 3380289
+ - test_cindex_tied_risk_pairs: 1
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.0850820293573672
+Experiment Artifacts Summary: random-forest_nhanes-real_only-exclude-downstream
+Metrics:
+ - test_cindex: 0.8629987334483258
+ - test_cindex_concordant_pairs: 21404766
+ - test_cindex_discordant_pairs: 3398012
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.0690222189617365
+Experiment Artifacts Summary: cox_nhanes-real_only-exclude-downstream
+Metrics:
+ - test_cindex: 0.8649930261844057
+ - test_cindex_concordant_pairs: 21454230
+ - test_cindex_discordant_pairs: 3348548
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06724875222647445
+Experiment Artifacts Summary: svm_nhanes-real_bmi-only
+Metrics:
+ - test_cindex: 0.5062865337100546
+ - test_cindex_concordant_pairs: 12546772
+ - test_cindex_discordant_pairs: 12234925
+ - test_cindex_tied_risk_pairs: 21081
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.11202158903138447
+Experiment Artifacts Summary: random-forest_nhanes-real_bmi-only
+Metrics:
+ - test_cindex: 0.5077265538561849
+ - test_cindex_concordant_pairs: 12581261
+ - test_cindex_discordant_pairs: 12197981
+ - test_cindex_tied_risk_pairs: 23536
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.11197553862064448
+Experiment Artifacts Summary: cox_nhanes-real_bmi-only
+Metrics:
+ - test_cindex: 0.5062865337100546
+ - test_cindex_concordant_pairs: 12546772
+ - test_cindex_discordant_pairs: 12234925
+ - test_cindex_tied_risk_pairs: 21081
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.11200200116350359
+Experiment Artifacts Summary: svm_nhanes-real_waist-to-height-only
+Metrics:
+ - test_cindex: 0.5953467188231899
+ - test_cindex_concordant_pairs: 14765948
+ - test_cindex_discordant_pairs: 10036221
+ - test_cindex_tied_risk_pairs: 609
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.11021056107449385
+Experiment Artifacts Summary: random-forest_nhanes-real_waist-to-height-only
+Metrics:
+ - test_cindex: 0.6126695364527313
+ - test_cindex_concordant_pairs: 15195537
+ - test_cindex_discordant_pairs: 9606502
+ - test_cindex_tied_risk_pairs: 739
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.10736827844060408
+Experiment Artifacts Summary: cox_nhanes-real_waist-to-height-only
+Metrics:
+ - test_cindex: 0.5953525649425238
+ - test_cindex_concordant_pairs: 14766093
+ - test_cindex_discordant_pairs: 10036076
+ - test_cindex_tied_risk_pairs: 609
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.10937072955614913
+Experiment Artifacts Summary: svm_nhanes-real_intake-form
+Metrics:
+ - test_cindex: 0.8608813093436549
+ - test_cindex_concordant_pairs: 21352248
+ - test_cindex_discordant_pairs: 3450530
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.08591027335478041
+Experiment Artifacts Summary: random-forest_nhanes-real_intake-form
+Metrics:
+ - test_cindex: 0.8634447318764051
+ - test_cindex_concordant_pairs: 21415828
+ - test_cindex_discordant_pairs: 3386950
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06944080182335509
+Experiment Artifacts Summary: cox_nhanes-real_intake-form
+Metrics:
+ - test_cindex: 0.8618880514110153
+ - test_cindex_concordant_pairs: 21377218
+ - test_cindex_discordant_pairs: 3425560
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06904911512467536
+Experiment Artifacts Summary: svm_nhanes-real_intake-feasible
+Metrics:
+ - test_cindex: 0.8609346098247543
+ - test_cindex_concordant_pairs: 21353570
+ - test_cindex_discordant_pairs: 3449208
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.08589570952221555
+Experiment Artifacts Summary: random-forest_nhanes-real_intake-feasible
+Metrics:
+ - test_cindex: 0.8635439546328237
+ - test_cindex_concordant_pairs: 21418289
+ - test_cindex_discordant_pairs: 3384489
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06993247777491302
+Experiment Artifacts Summary: cox_nhanes-real_intake-feasible
+Metrics:
+ - test_cindex: 0.8619531650849755
+ - test_cindex_concordant_pairs: 21378833
+ - test_cindex_discordant_pairs: 3423945
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06898717014106047
+Experiment Artifacts Summary: svm_nhanes-synthetic_only-exclude-downstream
+Metrics:
+ - pred_vs_gt_index_corr: 0.10023150214437641
+ - pred_vs_gt_index_rmse: 0.23988865458151554
+ - pred_vs_gt_pop_index_diff: 0.2155494805353789
+ - test_cindex: 0.7848656518023863
+ - test_cindex_concordant_pairs: 123997
+ - test_cindex_discordant_pairs: 33988
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.14867859848832243
+Experiment Artifacts Summary: random-forest_nhanes-synthetic_only-exclude-downstream
+Metrics:
+ - pred_vs_gt_index_corr: 0.5815286491471899
+ - pred_vs_gt_index_rmse: 0.04749080715623532
+ - pred_vs_gt_pop_index_diff: 0.014105583983061828
+ - test_cindex: 0.7614900148748299
+ - test_cindex_concordant_pairs: 120304
+ - test_cindex_discordant_pairs: 37681
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.138965643987804
+Experiment Artifacts Summary: cox_nhanes-synthetic_only-exclude-downstream
+Metrics:
+ - pred_vs_gt_index_corr: 0.22094089838319664
+ - pred_vs_gt_index_rmse: 0.2686697221409818
+ - pred_vs_gt_pop_index_diff: 0.18679229409837306
+ - test_cindex: 0.7860429787638067
+ - test_cindex_concordant_pairs: 124183
+ - test_cindex_discordant_pairs: 33802
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.12453679005524472
+Experiment Artifacts Summary: svm_nhanes-synthetic_bmi-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5531284615628066
+ - test_cindex_concordant_pairs: 87386
+ - test_cindex_discordant_pairs: 70599
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20350171510160547
+Experiment Artifacts Summary: random-forest_nhanes-synthetic_bmi-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5403804158622654
+ - test_cindex_concordant_pairs: 85129
+ - test_cindex_discordant_pairs: 72370
+ - test_cindex_tied_risk_pairs: 486
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20850224977424572
+Experiment Artifacts Summary: cox_nhanes-synthetic_bmi-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5531284615628066
+ - test_cindex_concordant_pairs: 87386
+ - test_cindex_discordant_pairs: 70599
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20289527052667855
+Experiment Artifacts Summary: svm_nhanes-synthetic_waist-to-height-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5543500965281514
+ - test_cindex_concordant_pairs: 87579
+ - test_cindex_discordant_pairs: 70406
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20320144168119422
+Experiment Artifacts Summary: random-forest_nhanes-synthetic_waist-to-height-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5516852865778397
+ - test_cindex_concordant_pairs: 87151
+ - test_cindex_discordant_pairs: 70820
+ - test_cindex_tied_risk_pairs: 14
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20393902728869517
+Experiment Artifacts Summary: cox_nhanes-synthetic_waist-to-height-only
+Metrics:
+ - pred_vs_gt_index_corr: nan
+ - pred_vs_gt_index_rmse: 0.05632618001580742
+ - pred_vs_gt_pop_index_diff: 0.025484859124609453
+ - test_cindex: 0.5541665347976074
+ - test_cindex_concordant_pairs: 87550
+ - test_cindex_discordant_pairs: 70435
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.20268187265189203
+Experiment Artifacts Summary: svm_nhanes-synthetic_intake-form
+Metrics:
+ - pred_vs_gt_index_corr: 0.5136730126437191
+ - pred_vs_gt_index_rmse: 0.18733993951855082
+ - pred_vs_gt_pop_index_diff: 0.1667537462434573
+ - test_cindex: 0.7832958825204924
+ - test_cindex_concordant_pairs: 123749
+ - test_cindex_discordant_pairs: 34236
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.14962165889754067
+Experiment Artifacts Summary: random-forest_nhanes-synthetic_intake-form
+Metrics:
+ - pred_vs_gt_index_corr: 0.8590721327137384
+ - pred_vs_gt_index_rmse: 0.026815155758684324
+ - pred_vs_gt_pop_index_diff: 0.0067129322443838235
+ - test_cindex: 0.7787384878311232
+ - test_cindex_concordant_pairs: 123029
+ - test_cindex_discordant_pairs: 34956
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.12737663243078146
+Experiment Artifacts Summary: cox_nhanes-synthetic_intake-form
+Metrics:
+ - pred_vs_gt_index_corr: 0.45146406569768766
+ - pred_vs_gt_index_rmse: 0.3109470088266653
+ - pred_vs_gt_pop_index_diff: 0.2203625977078414
+ - test_cindex: 0.7835174225401146
+ - test_cindex_concordant_pairs: 123784
+ - test_cindex_discordant_pairs: 34201
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.12568634422526437
+Experiment Artifacts Summary: svm_nhanes-synthetic_intake-feasible
+Metrics:
+ - pred_vs_gt_index_corr: 0.1129225113038264
+ - pred_vs_gt_index_rmse: 0.2420189987776443
+ - pred_vs_gt_pop_index_diff: 0.21826577688701657
+ - test_cindex: 0.7849795866696205
+ - test_cindex_concordant_pairs: 124015
+ - test_cindex_discordant_pairs: 33970
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.1489112416571337
+Experiment Artifacts Summary: random-forest_nhanes-synthetic_intake-feasible
+Metrics:
+ - pred_vs_gt_index_corr: 0.7285767231721244
+ - pred_vs_gt_index_rmse: 0.04196266480063957
+ - pred_vs_gt_pop_index_diff: 0.011970641025922978
+ - test_cindex: 0.7688514732411305
+ - test_cindex_concordant_pairs: 121467
+ - test_cindex_discordant_pairs: 36518
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.13211429446533254
+Experiment Artifacts Summary: cox_nhanes-synthetic_intake-feasible
+Metrics:
+ - pred_vs_gt_index_corr: 0.2213906375336759
+ - pred_vs_gt_index_rmse: 0.26911316216044096
+ - pred_vs_gt_pop_index_diff: 0.1889220955321638
+ - test_cindex: 0.7857518118808747
+ - test_cindex_concordant_pairs: 124137
+ - test_cindex_discordant_pairs: 33848
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.12456412985669729
+Experiment Artifacts Summary: naive_svm_nhanes-real_include-all
+Metrics:
+ - test_cindex: 0.8890588788078496
+ - test_cindex_concordant_pairs: 22051130
+ - test_cindex_discordant_pairs: 2751648
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.07952144386648799
+Experiment Artifacts Summary: naive_random-forest_nhanes-real_include-all
+Metrics:
+ - test_cindex: 0.8857873904286044
+ - test_cindex_concordant_pairs: 21969988
+ - test_cindex_discordant_pairs: 2832790
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.06217026950120773
+Experiment Artifacts Summary: naive_cox-strong-reg_nhanes-real_include-all
+Metrics:
+ - test_cindex: 0.8876908868837192
+ - test_cindex_concordant_pairs: 22017200
+ - test_cindex_discordant_pairs: 2785578
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 142076
+ - test_integrated_brier_score: 0.05908141567532544
+Experiment Artifacts Summary: naive_svm_nhanes-synthetic_include-all
+Metrics:
+ - pred_vs_gt_index_corr: 0.09951476789987965
+ - pred_vs_gt_index_rmse: 0.23965620022382603
+ - pred_vs_gt_pop_index_diff: 0.21532153805527762
+ - test_cindex: 0.7849226192360034
+ - test_cindex_concordant_pairs: 124006
+ - test_cindex_discordant_pairs: 33979
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.14867454856043608
+Experiment Artifacts Summary: naive_random-forest_nhanes-synthetic_include-all
+Metrics:
+ - pred_vs_gt_index_corr: 0.5815286491471899
+ - pred_vs_gt_index_rmse: 0.04749080715623532
+ - pred_vs_gt_pop_index_diff: 0.014105583983061828
+ - test_cindex: 0.7614900148748299
+ - test_cindex_concordant_pairs: 120304
+ - test_cindex_discordant_pairs: 37681
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.138965643987804
+Experiment Artifacts Summary: naive_cox-strong-reg_nhanes-synthetic_include-all
+Metrics:
+ - pred_vs_gt_index_corr: 0.03603386079708606
+ - pred_vs_gt_index_rmse: 0.052381874329306695
+ - pred_vs_gt_pop_index_diff: 0.0111066485620471
+ - test_cindex: 0.7855682501503307
+ - test_cindex_concordant_pairs: 124108
+ - test_cindex_discordant_pairs: 33877
+ - test_cindex_tied_risk_pairs: 0
+ - test_cindex_tied_time_pairs: 207
+ - test_integrated_brier_score: 0.12479869112244538
+
+
+
