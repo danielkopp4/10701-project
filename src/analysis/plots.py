@@ -64,10 +64,9 @@ def generate_index_plot(experiment_name: str):
     tikz_path = analysis_path / "index_plot.tex"
 
     # save PNG
-    fig.savefig(png_path, dpi=300)
+    fig.savefig(png_path, dpi=50)
 
     # save TikZ/PGFPlots
-    # matplot2tikz uses the current figure by default
     matplot2tikz.save(str(tikz_path))
 
     plt.close(fig)
