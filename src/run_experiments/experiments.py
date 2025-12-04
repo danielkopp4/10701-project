@@ -71,8 +71,8 @@ def run_experiments(
     ]
     
     models = [
-        ("gradient-boost", GradientBoosting()),
-        ("random-forest", RandomSurvivalForest()),
+        # ("gradient-boost", GradientBoosting()),
+        # ("random-forest", RandomSurvivalForest()),
         ("cox", Cox(alpha=0.1)),
     ]
     
