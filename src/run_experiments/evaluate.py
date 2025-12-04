@@ -45,31 +45,47 @@ def _compute_individual_index(
     A_name: str,
     A_values: Optional[Sequence] = None,
     A_strata: int = 300,
+    w_bounds: Optional[tuple[float, float]] = None,
+    softmin_q: Optional[float] = 0.05,
 ):
     """
     Compute prediction-based individual index
 
         I_i(T) = p_i(A_obs, T) - min_a p_i(a, T)
     """
+    
+    # make sure the A feature is not removed by preprocessor
+    if preprocessor.feature_cols_ is not None:
+        if A_name not in preprocessor.feature_cols_:
+            raise ValueError(
+                f"_compute_individual_index: preprocessor removed A={A_name} feature"
+            )
+    
     a_obs = X_raw[A_name]
 
-    if A_values is None:
-        # Use quantile midpoints as a small representative grid
-        quantiles = np.linspace(0, 1, max(2, min(A_strata, len(a_obs.dropna()))))
-        edges = np.unique(np.quantile(a_obs.dropna(), quantiles))
-        if len(edges) < 2:
-            raise ValueError(f"_compute_individual_index: not enough non-missing values for {A_name}")
-        A_values = 0.5 * (edges[:-1] + edges[1:])
-        A_values = np.unique(A_values)
-    else:
+    a_nonmissing = a_obs.dropna().to_numpy()
+    if A_values is not None:
         A_values = np.array(sorted(set(A_values)), dtype=float)
         if len(A_values) == 0:
-            raise ValueError(
-                f"_compute_individual_index: provided A_values for {A_name} is empty"
-            )
+            raise ValueError(f"_compute_individual_index: provided A_values for {A_name} is empty")
+    else:
+        if w_bounds is not None:
+            lo, hi = w_bounds
+            n_eff = min(A_strata, 50)  # cap for stability
+            A_values = np.linspace(lo, hi, num=n_eff)
+        else:
+            n_eff = max(2, min(A_strata, len(a_nonmissing)))
+            quantiles = np.linspace(0.0, 1.0, n_eff)
+            edges = np.unique(np.quantile(a_nonmissing, quantiles))
+            if len(edges) < 2:
+                raise ValueError(
+                    f"_compute_individual_index: not enough non-missing values for {A_name}"
+                )
+            mids = 0.5 * (edges[:-1] + edges[1:])
+            A_values = np.unique(mids.astype(float))
 
-    n_samples = X_raw.shape[0]
     A_values = np.asarray(A_values, dtype=float)
+    n_samples = X_raw.shape[0]
     n_levels = len(A_values)
 
     rows = []
@@ -85,6 +101,7 @@ def _compute_individual_index(
 
     surv_cf_list = model.predict_survival_function(X_cf_proc)
 
+    # common evaluation time
     t_idx = int(np.argmin(np.abs(time_grid - t_eval)))
     t_eval_actual = float(time_grid[t_idx])
 
@@ -94,10 +111,12 @@ def _compute_individual_index(
     ])  # shape (n_samples * n_levels,)
     event_probs_cf = event_probs_cf.reshape(n_samples, n_levels)
 
-    # min_a p_i(a, T_eval)
-    min_test_P_i = event_probs_cf.min(axis=1)
+    if softmin_q is None:
+        min_test_P_i = event_probs_cf.min(axis=1)
+    else:
+        q = float(softmin_q)
+        min_test_P_i = np.quantile(event_probs_cf, q, axis=1)
 
-    # observed probability at true A (no bin substitution)
     X_obs_proc = preprocessor.transform(X_raw)
     surv_obs_list = model.predict_survival_function(X_obs_proc)
     event_probs_obs = np.array([
@@ -106,17 +125,14 @@ def _compute_individual_index(
     ])
 
     valid_mask = a_obs.notna()
-
     if not valid_mask.any():
         raise ValueError(
             f"_compute_individual_index: all values of A={A_name} are missing for this split"
         )
 
-    # p_i(A_obs, T_eval), NaN for rows with missing A
     p_obs = np.full(n_samples, np.nan, dtype=float)
     p_obs[valid_mask] = event_probs_obs[valid_mask]
 
-    # I_i(T) = p_obs - min_a p_i(a, T_eval), NaN where p_obs is NaN
     pred_index = np.full(n_samples, np.nan, dtype=float)
     pred_index[valid_mask] = p_obs[valid_mask] - min_test_P_i[valid_mask]
 
@@ -134,7 +150,7 @@ def evaluate_experiment(
 
     # raw data from loader
     train_X_raw, train_y, test_X_raw, test_y = data
-    artifacts.append_data({"name": "dataset_raw", "data": data})
+    # artifacts.append_data({"name": "dataset_raw", "data": data})
 
     # preprocessing
     preproc: Preprocessor = experiment.preprocessor
@@ -157,19 +173,32 @@ def evaluate_experiment(
     artifacts.append_data({"name": "train_risk_scores", "data": train_risk})
     artifacts.append_data({"name": "test_risk_scores", "data": test_risk})
 
+    event_train, time_train = _extract_event_time(train_y)
     event_test, time_test = _extract_event_time(test_y)
 
-    cindex, n_conc, n_disc, n_tied_risk, n_tied_time = concordance_index_censored(
+    train_cindex, train_n_conc, train_n_disc, train_n_tied_risk, train_n_tied_time = concordance_index_censored(
+        event_indicator=event_train,
+        event_time=time_train,
+        estimate=train_risk,
+    )
+    
+    artifacts.append_metric({"name": "train_cindex", "data": float(train_cindex)})
+    artifacts.append_data({"name": "train_cindex_concordant_pairs", "data": int(train_n_conc)})
+    artifacts.append_data({"name": "train_cindex_discordant_pairs", "data": int(train_n_disc)})
+    artifacts.append_data({"name": "train_cindex_tied_risk_pairs", "data": int(train_n_tied_risk)})
+    artifacts.append_data({"name": "train_cindex_tied_time_pairs", "data": int(train_n_tied_time)})
+
+    test_cindex, test_n_conc, test_n_disc, test_n_tied_risk, test_n_tied_time = concordance_index_censored(
         event_indicator=event_test,
         event_time=time_test,
         estimate=test_risk,
     )
 
-    artifacts.append_metric({"name": "test_cindex", "data": float(cindex)})
-    artifacts.append_metric({"name": "test_cindex_concordant_pairs", "data": int(n_conc)})
-    artifacts.append_metric({"name": "test_cindex_discordant_pairs", "data": int(n_disc)})
-    artifacts.append_metric({"name": "test_cindex_tied_risk_pairs", "data": int(n_tied_risk)})
-    artifacts.append_metric({"name": "test_cindex_tied_time_pairs", "data": int(n_tied_time)})
+    artifacts.append_metric({"name": "test_cindex", "data": float(test_cindex)})
+    artifacts.append_data({"name": "test_cindex_concordant_pairs", "data": int(test_n_conc)})
+    artifacts.append_data({"name": "test_cindex_discordant_pairs", "data": int(test_n_disc)})
+    artifacts.append_data({"name": "test_cindex_tied_risk_pairs", "data": int(test_n_tied_risk)})
+    artifacts.append_data({"name": "test_cindex_tied_time_pairs", "data": int(test_n_tied_time)})
 
     # survival curves (processed X)
     time_grid = None
@@ -264,7 +293,15 @@ def evaluate_experiment(
             pop_index_diff = float("nan")
             rmse = float("nan")
         else:
-            corr = float(np.corrcoef(pred_index[common_mask], gt_index[common_mask])[0, 1])
+            # check if all values are identical
+            if np.all(pred_index[common_mask] == pred_index[common_mask][0]):
+                print(
+                    "WARNING: predicted risk index is constant across all individuals; "
+                )
+                corr = float("nan")
+            else:
+                corr = float(np.corrcoef(pred_index[common_mask], gt_index[common_mask])[0, 1])
+            
 
             pop_index_diff = float(
                 np.abs(
