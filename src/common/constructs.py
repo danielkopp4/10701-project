@@ -114,10 +114,12 @@ class ExperimentArtifacts:
 
     def print_summary(self):
         exp_name = self.experiment.name if self.experiment is not None else "<unnamed>"
+        print("=" * 80)
         print(f"Experiment Artifacts Summary: {exp_name}")
-        print("Metrics:")
+        print("=" * 80)
         for name in sorted(self.metrics):
             print(f" - {name}: {self.metrics[name]}")
+        print()
 
     def save(self, path: str | Path):
         path = Path(path)

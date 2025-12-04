@@ -28,29 +28,44 @@ def download_nhanes():
         "2017-2018",
     ]
 
-    # Format: (filename_prefix, description)
-    file_types: Dict[str, tuple[str, str]] = {
-        "demographics": ("DEMO", "Demographics"),
-        "body_measures": ("BMX", "Body Measures"),
-        "blood_pressure": ("BPX", "Blood Pressure"),
-        "cholesterol": ("TCHOL", "Total Cholesterol"),
-        "glucose": ("GLU", "Plasma Glucose"),
-        "glycohemoglobin": ("GHB", "Glycohemoglobin (HbA1c)"),
-        "insulin": ("INS", "Insulin"),
-        "triglycerides": ("TRIGLY", "Triglycerides"),
-        "hdl": ("HDL", "HDL Cholesterol"),
-        "biochem": ("BIOPRO", "Biochemistry Profile"),
-        "complete_blood": ("CBC", "Complete Blood Count"),
-        "creatinine": ("ALB_CR", "Albumin & Creatinine"),
-        "dxa": ("DXX", "Dual Energy X-ray Absorptiometry"),
-        "physical_activity": ("PAQ", "Physical Activity"),
-        "smoking": ("SMQ", "Smoking"),
-        "alcohol": ("ALQ", "Alcohol Use"),
-        "diet": ("DBQ", "Diet Behavior"),
-        "medical_conditions": ("MCQ", "Medical Conditions"),
-        "diabetes": ("DIQ", "Diabetes"),
-        "cardiovascular": ("CDQ", "Cardiovascular Health"),
-        "weight_history": ("WHQ", "Weight History"),
+    # Format: (filename_prefixes, description)
+    # Each entry can have multiple filename options to try (primary first, then fallbacks)
+    # Naming patterns: 2003+ uses standard codes, 2001-2002 uses L##_B format, 1999-2000 uses LAB## format
+    file_types: Dict[str, tuple[List[str], str]] = {
+        "demographics": (["DEMO"], "Demographics"),
+        "body_measures": (["BMX"], "Body Measures"),
+        "blood_pressure": (["BPX"], "Blood Pressure"),
+        "cholesterol_total_hdl": (["TCHOL", "L13", "LAB13"], "Total Cholesterol & HDL"),
+        "cholesterol_ldl_trig": (["L13AM", "LAB13AM", "TRIGLY"], "LDL & Triglycerides"),
+        "glucose": (["GLU", "L10AM", "LAB10AM"], "Plasma Glucose & Insulin"),
+        "glycohemoglobin": (["GHB", "L10", "LAB10"], "Glycohemoglobin (HbA1c)"),
+        "insulin": (["INS", "LAB10AM", "L10_2", "L10AM", "GLU"], "Insulin"),
+        "triglycerides": (["TRIGLY", "LAB13AM", "L13AM"], "Triglycerides"),
+        "hdl": (["HDL", "LAB13", "L13"], "HDL Cholesterol"),
+        "biochem": (["BIOPRO", "L40", "LAB18"], "Biochemistry Profile"),
+        "complete_blood": (["CBC", "L25", "LAB25"], "Complete Blood Count"),
+        "creatinine": (["ALB_CR", "L16", "LAB16"], "Albumin & Creatinine"),
+        "hepatitis_a": (["HEPA", "L02HPA", "L02HPA_A"], "Hepatitis A Antibody"),
+        "hepatitis_b_surface": (["L02HBS", "LAB02", "HEPB_S"], "Hepatitis B Surface Antibody"),
+        "hepatitis_core": (["L02", "LAB02", "HEPBD"], "Hepatitis B & C Core"),
+        "c_reactive_protein": (["CRP", "L11", "LAB11", "HSCRP"], "C-Reactive Protein"),
+        "herpes": (["L09", "LAB09", "HSV"], "Herpes Simplex Virus Type-1 & Type-2"),
+        "hiv": (["L03", "LAB03", "HIV"], "HIV Antibody Test"),
+        "measles_rubella_varicella": (["L19", "LAB19"], "Measles, Rubella, & Varicella"),
+        "iron": (["L40FE", "FETIB"], "Iron, TIBC, & Transferrin Saturation"),
+        "thyroid": (["L40T4", "LAB18T4", "L11", "PTH", "THYROID", "THYROD"], "Thyroid - TSH & T4"),
+        "vitamin_d": (["VID"], "Vitamin D"),
+        "dxa": (["DXX"], "Dual Energy X-ray Absorptiometry"),
+        "physical_activity": (["PAQ"], "Physical Activity"),
+        "smoking": (["SMQ"], "Smoking"),
+        "alcohol": (["ALQ"], "Alcohol Use"),
+        "diet": (["DBQ"], "Diet Behavior"),
+        "medical_conditions": (["MCQ"], "Medical Conditions"),
+        "diabetes": (["DIQ"], "Diabetes"),
+        "cardiovascular": (["CDQ"], "Cardiovascular Health"),
+        "weight_history": (["WHQ"], "Weight History"),
+        "fasting": (["PH", "FASTQX"], "Fasting Questionnaire"),
+        "pregnancy": (["UC", "UCPREG"], "Pregnancy Test - Urine"),
     }
 
     # Cycle -> suffix letter used in filenames
@@ -79,40 +94,68 @@ def download_nhanes():
         except OSError:
             return False
 
-    def download_xpt_file(cycle: str, file_code: str, description: str) -> Path | None:
+    def download_xpt_file(cycle: str, file_codes: List[str], description: str) -> Path | None:
+        """
+        Try to download a file with multiple possible filename patterns.
+        Tries each file_code in order until one succeeds.
+        Downloads with the actual filename but renames to the primary (first) filename for consistency.
+        """
         if cycle not in cycle_map:
             raise ValueError(f"Missing file suffix mapping for cycle: {cycle}")
 
         cycle_letter = cycle_map[cycle]
         cycle_prefix = cycle[:cycle.find("-")]
-        filename = f"{file_code}_{cycle_letter}.XPT" if cycle_letter else f"{file_code}.XPT"
-        url = f"{base_url}/{cycle_prefix}/DataFiles/{filename}"
-        output_path = data_dir / filename
+        
+        # Primary filename (what we want to save as)
+        primary_code = file_codes[0]
+        primary_filename = f"{primary_code}_{cycle_letter}.XPT" if cycle_letter else f"{primary_code}.XPT"
+        primary_path = data_dir / primary_filename
 
-        if output_path.exists():
-            if is_valid_xpt(output_path):
-                print(f"✅  Already downloaded: {filename}")
-                return output_path
+        # Check if primary file already exists
+        if primary_path.exists():
+            if is_valid_xpt(primary_path):
+                print(f"Already downloaded: {primary_filename}")
+                return primary_path
             else:
-                print(f"⚠️️ Existing file invalid, re-downloading: {filename}")
+                print(f"Existing file invalid, re-downloading: {primary_filename}")
 
-        try:
-            print(f"Downloading {description} ({filename})...", end=" ")
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
+        # Try each file code variant
+        for idx, file_code in enumerate(file_codes):
+            filename = f"{file_code}_{cycle_letter}.XPT" if cycle_letter else f"{file_code}.XPT"
+            url = f"{base_url}/{cycle_prefix}/DataFiles/{filename}"
+            temp_path = data_dir / filename
 
-            with open(output_path, "wb") as f:
-                f.write(response.content)
+            try:
+                # Only print for the first attempt
+                if idx == 0:
+                    print(f"Downloading {description} ({primary_filename})...", end=" ")
+                    
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
 
-            if not is_valid_xpt(output_path):
-                print("❌ Downloaded file is not a valid XPORT; keeping for inspection.")
-                return None
+                with open(temp_path, "wb") as f:
+                    f.write(response.content)
 
-            print("✅ Done")
-            return output_path
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Failed: {e}")
-            return None
+                if not is_valid_xpt(temp_path):
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    continue
+
+                # Rename to primary filename if downloaded with a fallback name
+                if temp_path != primary_path:
+                    temp_path.rename(primary_path)
+
+                print("Done")
+                return primary_path
+            except requests.exceptions.RequestException:
+                # Silently try next fallback
+                if temp_path.exists():
+                    temp_path.unlink()
+                continue
+
+        # All attempts failed
+        print(f"\nNo file for {description} in cycle {cycle}. Skipping...")
+        return None
 
     def load_xpt_file(filepath: Path | None) -> pd.DataFrame | None:
         if filepath and filepath.exists():
@@ -134,8 +177,8 @@ def download_nhanes():
 
         downloaded_files[cycle] = {}
 
-        for key, (code, desc) in file_types.items():
-            filepath = download_xpt_file(cycle, code, desc)
+        for key, (codes, desc) in file_types.items():
+            filepath = download_xpt_file(cycle, codes, desc)
             if filepath:
                 downloaded_files[cycle][key] = filepath
 
@@ -153,18 +196,18 @@ def download_nhanes():
             df = load_xpt_file(filepath)
             if df is not None:
                 dataframes[key] = df
-                print(f"✅ ({df.shape[0]} rows, {df.shape[1]} columns)")
+                print(f"({df.shape[0]} rows, {df.shape[1]} columns)")
             else:
-                print("❌ Failed")
+                print("Failed")
 
         if not dataframes:
-            print(f"[{cycle}] ❌ No data files were successfully loaded")
+            print(f"[{cycle}] No data files were successfully loaded")
             continue
 
         merged_df = dataframes.get("demographics")
 
         if merged_df is None:
-            print(f"[{cycle}] ❌ Demographics file missing; skipping cycle")
+            print(f"[{cycle}] Demographics file missing; skipping cycle")
             continue
 
         if merged_df["SEQN"].duplicated().any():
@@ -177,14 +220,14 @@ def download_nhanes():
                 continue
 
             if "SEQN" not in df.columns:
-                print(f"[{cycle}]  ❌ Skipping {key} - no SEQN column")
+                print(f"[{cycle}] Skipping {key} - no SEQN column")
                 continue
 
             if df["SEQN"].duplicated().any():
                 print(f"[{cycle}] WARNING: {key} has duplicate SEQNs, keeping first occurrence")
                 df = df.drop_duplicates(subset=["SEQN"], keep="first")
 
-            print(f"[{cycle}]  Merging {key}...", end=" ")
+            print(f"[{cycle}] Merging {key}...", end=" ")
             before_cols = len(merged_df.columns)
             before_rows = len(merged_df)
 
@@ -201,7 +244,7 @@ def download_nhanes():
             if after_rows != before_rows:
                 print(f"Row count changed: {before_rows} → {after_rows}!")
             else:
-                print(f"✅ (+{after_cols - before_cols} columns)")
+                print(f"(+{after_cols - before_cols} columns)")
 
         if len(merged_df) != base_rows:
             print(f"[{cycle}] WARNING: Final row count ({len(merged_df)}) doesn't match demographics ({base_rows})!")
@@ -210,7 +253,7 @@ def download_nhanes():
         merged_cycles.append(merged_df)
 
     if not merged_cycles:
-        print("\n❌ No data files were successfully loaded across cycles")
+        print("\nNo data files were successfully loaded across cycles")
         return
 
     combined_df = pd.concat(merged_cycles, ignore_index=True, sort=False)
@@ -277,7 +320,7 @@ if __name__ == "__main__":
         from dotenv import load_dotenv
     except ImportError:
         def load_dotenv(*args, **kwargs):
-            print("⚠️ python-dotenv not installed; proceeding without loading config.env")
+            print("python-dotenv not installed; proceeding without loading config.env")
 
     load_dotenv("config.env")
     download_nhanes()

@@ -39,7 +39,7 @@ def download_file(filename: str, data_dir: Path) -> Optional[Path]:
     """Download a mortality file if not present locally."""
     output_path = data_dir / filename
     if output_path.exists():
-        print(f"✅ Already downloaded: {filename}")
+        print(f"Already downloaded: {filename}")
         return output_path
 
     url = f"{MORTALITY_BASE_URL}/{filename}"
@@ -50,11 +50,11 @@ def download_file(filename: str, data_dir: Path) -> Optional[Path]:
         resp.raise_for_status()
         with open(output_path, "wb") as f:
             f.write(resp.content)
-        print("✅ Done")
+        print("Done")
         return output_path
     except requests.RequestException as e:
-        print(f"❌ Failed: {e}")
-        print(f"   Manual download URL: {url}")
+        print(f"Failed: {e}")
+        print(f"Manual download URL: {url}")
         return None
 
 
@@ -86,12 +86,12 @@ def locate_nhanes_base(data_dir: Path) -> Optional[Path]:
 def download_nhanes_mortality(data_dir: Path) -> None:
     nhanes_file = locate_nhanes_base(data_dir)
     if nhanes_file is None:
-        print("\n❌ NHANES merged data not found. Please run download_nhanes.py first.")
+        print("\n NHANES merged data not found. Please run download_nhanes.py first.")
         return
 
     print("\nLoading NHANES merged data...")
     nhanes = pd.read_csv(nhanes_file, low_memory=False)
-    print(f"✅ Loaded {len(nhanes):,} NHANES participants")
+    print(f"Loaded {len(nhanes):,} NHANES participants")
 
     print("\n" + "=" * 80)
     print("DOWNLOADING NHANES MORTALITY LINKAGE FILES")
@@ -140,7 +140,7 @@ def download_nhanes_mortality(data_dir: Path) -> None:
         mortality = load_mortality_file(mort_file, column_names, dtypes)
         mortality["mortality_cycle"] = cycle_label
         mortality_dfs.append(mortality)
-        print(f"✅ Loaded {len(mortality):,} mortality records")
+        print(f"Loaded {len(mortality):,} mortality records")
 
     mortality_all = pd.concat(mortality_dfs, ignore_index=True)
 
@@ -184,11 +184,11 @@ def download_nhanes_mortality(data_dir: Path) -> None:
     for var in key_vars:
         if var in merged.columns:
             pct = 100 * merged[var].notna().mean()
-            print(f"  {var:12s}: {pct:5.1f}%")
+            print(f"{var:12s}: {pct:5.1f}%")
 
     output_file = data_dir / "nhanes_with_mortality.csv"
     merged.to_csv(output_file, index=False)
-    print(f"\n✅ Saved NHANES + mortality dataset to: {output_file}")
+    print(f"\n Saved NHANES + mortality dataset to: {output_file}")
 
 
 def download_nhis_mortality(data_dir: Path) -> None:
@@ -246,7 +246,7 @@ def download_nhis_mortality(data_dir: Path) -> None:
         mortality["time"] = pd.to_numeric(mortality["permth_int"], errors="coerce")
 
         mortality_dfs.append(mortality)
-        print(f"✅ Loaded {len(mortality):,} mortality records")
+        print(f"Loaded {len(mortality):,} mortality records")
 
     mortality_all = pd.concat(mortality_dfs, ignore_index=True)
 
