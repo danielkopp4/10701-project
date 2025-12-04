@@ -1,0 +1,11 @@
+\begin{tabular}{lllrrrr}
+\toprule
+Model & Dataset & Experiment & Train C-index & Test C-index & Index Correlation & Index RMSE \\
+\midrule
+RF & Synthetic & Intake w.o. W-History & 0.863 & 0.804 & 0.830 & 0.071 \\
+RF & Synthetic & Exclude Downstream & 0.867 & 0.802 & 0.751 & 0.096 \\
+RF & Synthetic & Intake Only & 0.865 & 0.802 & 0.750 & 0.088 \\
+Cox & Synthetic & Intake Only & 0.809 & 0.803 & 0.526 & 0.122 \\
+Cox & Synthetic & Exclude Downstream & 0.809 & 0.803 & 0.518 & 0.129 \\
+\bottomrule
+\end{tabular}

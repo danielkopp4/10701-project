@@ -21,6 +21,11 @@ ALWAYS_EXCLUDE_COLS: Set[str] = {
     "permth_int",
     "permth_exm",
     "eligstat",
+    # survey design
+    'SDMVSTRA',    # masked variance pseudo-stratum
+    'SDMVPSU',     # masked variance pseudo-PSU
+    'WTMEC2YR',    # MEC exam weight
+    'WTINT2YR',    # interview weight
     # “cheating” markers: direct proxies for hazard (synthetic only)
     "disease",
     "prob_disease",
@@ -200,6 +205,7 @@ class NHANESPreprocessor(Preprocessor):
                 "NHANESPreprocessor: no features left after exclusion. "
                 "Check ALWAYS_EXCLUDE_COLS / DOWNSTREAM_OF_WEIGHT_COLS."
             )
+        print('final feature cols:' , feature_cols)
         return feature_cols
 
     def fit(self, X, y=None):

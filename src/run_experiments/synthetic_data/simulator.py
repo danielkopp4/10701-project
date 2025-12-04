@@ -1,6 +1,6 @@
 import math
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Callable
+from typing import Optional, Tuple, Dict, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -47,9 +47,9 @@ class SynthParams:
     # Waist mean model: WC = a0 + a_w*W - a_h*H + a_m*male + N(0, wc_sd^2)
     wc_a0: float = 20.0
     wc_a_w: float = 1.00
-    wc_a_h: float = 0.05
+    wc_a_h: float = 0.02
     wc_a_male: float = 6.0
-    wc_sd: float = 3.5
+    wc_sd: float = 1.0
 
     # Thigh circumference (rough scaling)
     thigh_mu: float = 54.0
@@ -58,21 +58,26 @@ class SynthParams:
 
     # Latent mediator persistence (adiposity -> metabolic risk)
     m0: float = -4.0
-    m1_adipo: float = 0.8
+    m1_adipo: float = 1.6
     m2_persist: float = 0.5
     m3_disease: float = 1.0
-    wc_ref: float = 90.0
+    wc_ref: float = 95.0
 
     # Hazard model (cloglog) coefficients
     gamma0: float = -10.                        # baseline
-    gamma1_per_year: float = math.log(2) / 10.0 # doubling ~every 8 years
+    gamma1_per_year: float = math.log(2.5) / 10.0 # doubling ~every 8 years
     beta_male: float = 0.25
     beta_lowedu: float = 0.18
     beta_smk: float = 0.35
     beta_alc_hi: float = 0.10
-    theta_M: float = 0.6
-    beta_disease: float = 0.8 # extra hazard for illness
+    theta_M: float = 1.2
+    beta_disease: float = 0.4 # extra hazard for illness
     monthly_hazard_cap: float = 0.20
+
+    # Weight-history effects
+    # Contribution of history into latent M and hazard
+    theta_hist: float = 0      # how strongly history drives the mediator
+    beta_hist_direct: float = 0  # direct hazard effect of history
 
     # Survey weights (positive)
     weight_mean: float = 1.0
@@ -84,10 +89,10 @@ class SynthParams:
 
     # Illness / reverse-causation mechanism
     disease_logit_intercept: float = -6.0
-    disease_logit_age_beta: float = 0.10       # per 10 years from 50
-    disease_logit_bmi_beta: float = 0.20       # per BMI unit above 27
-    disease_weight_loss_mean: float = 8.0      # kg
-    disease_weight_loss_sd: float = 4.0        # kg
+    disease_logit_age_beta: float = 0.05       # per 10 years from 50
+    disease_logit_bmi_beta: float = 0.10       # per BMI unit above 27
+    disease_weight_loss_mean: float = 4.0      # kg
+    disease_weight_loss_sd: float = 2.0        # kg
     min_weight_kg: float = 35.0
     max_weight_kg: float = 240.0
 
@@ -140,6 +145,35 @@ class BaselineSampler:
         h_m = height / 100.0
         weight0 = np.clip(bmi0 * (h_m ** 2), p.min_weight_kg, p.max_weight_kg)
 
+        # Trajectory type: 0=stable, 1=gain, 2=loss, 3=cycle
+        traj = r.integers(0, 4, size=n)
+        stable = (traj == 0)
+        gain   = (traj == 1)
+        loss   = (traj == 2)
+        cycle  = (traj == 3)
+
+        # 1-year weight
+        delta_gain = np.abs(r.normal(5.0, 1.0, size=n))
+        delta_loss = np.abs(r.normal(5.0, 1.0, size=n))
+        delta_cycle = r.normal(0.0, 2.0, size=n)
+
+        w_1y = weight0.copy()
+        w_1y[gain]  = np.clip(weight0[gain]  - delta_gain[gain], p.min_weight_kg, p.max_weight_kg)
+        w_1y[loss]  = np.clip(weight0[loss]  + delta_loss[loss], p.min_weight_kg, p.max_weight_kg)
+        w_1y[cycle] = np.clip(weight0[cycle] + delta_cycle[cycle], p.min_weight_kg, p.max_weight_kg)
+
+        # lifetime max weight: at least max(current, 1y), plus some possible extra gain
+        extra_gain = np.maximum(0.0, r.normal(3.0, 2.0, size=n))
+        w_max = np.maximum(weight0, w_1y)
+        w_max = np.maximum(w_max, weight0 + extra_gain)
+        w_max = np.clip(w_max, p.min_weight_kg, p.max_weight_kg)
+
+        # self-reported current weight, some noise around measured
+        w_self = np.clip(weight0 + r.normal(0.0, 1.5, size=n), p.min_weight_kg, p.max_weight_kg)
+
+        # self-reported height, small noise
+        h_self = np.clip(height + r.normal(0.0, 1.0, size=n), 120.0, 220.0)
+
         # lifestyle
         smk = r.binomial(1, p.p_current_smoker, n)
         alc_hi = r.binomial(1, p.p_heavy_alcohol, n)
@@ -174,6 +208,10 @@ class BaselineSampler:
                 "SMQ": smk.astype(int),
                 "ALQ": alc_hi.astype(int),
                 "WTMEC2YR": wts.astype(float),
+                "WHD010": h_self.astype(float),   # self-reported height (cm)
+                "WHD020": w_self.astype(float),   # self-reported current weight (kg)
+                "WHD050": w_1y.astype(float),     # weight 1 year ago (kg)
+                "WHD140": w_max.astype(float),    # maximum lifetime weight (kg)
             }
         )
 
@@ -223,11 +261,25 @@ class BaselineSampler:
         df["BMXWAIST_raw"] = df["BMXWAIST"]
         df["BMXBMI_raw"] = df["BMXBMI"]
 
+        if "WHD020" not in df.columns:
+            df["WHD020"] = df["BMXWT"]  # fallback: current = measured
+
+        if "WHD050" not in df.columns:
+            df["WHD050"] = df["BMXWT"]  # fallback: no change vs 1 year ago
+
+        if "WHD140" not in df.columns:
+            # lifetime max at least max(current, 1-year-ago)
+            df["WHD140"] = df[["BMXWT", "WHD050"]].max(axis=1)
+
+        if "WHD010" not in df.columns:
+            df["WHD010"] = df["BMXHT"]
+
         if "EDU" not in df.columns:
             if "DMDEDUC2" in df.columns:
                 df["EDU"] = (df["DMDEDUC2"].fillna(0.0) <= 2).astype(int)
             else:
                 df["EDU"] = 0
+        
 
         if "SMQ" not in df.columns:
             smq_cols = [c for c in df.columns if c.startswith("SMQ")]
@@ -345,14 +397,49 @@ class NHANESSimulator:
         # latent BMI – here matching raw BMI
         bmi_latent = bmi_raw.copy()
 
-        # illness probability depending on latent BMI and age
+        w_self = df["WHD020"].to_numpy(dtype=float)
+        w_1y = df["WHD050"].to_numpy(dtype=float)
+        w_max_hist = df["WHD140"].to_numpy(dtype=float)
+
+        bmi_max_hist = w_max_hist / (height_m ** 2)
+        df["BMI_max_hist"] = bmi_max_hist
+
+        # Recent weight loss in kg (positive if 1-year-ago > current)
+        recent_loss = np.maximum(0.0, w_1y - w_self)
+
+        # Long-term high weight: kg difference between max and current
+        long_high = np.maximum(0.0, w_max_hist - w_self)
+
+        # Generic history risk score (dimensionless)
+        hist_risk = (
+            np.maximum(0.0, bmi_max_hist - 27.0)   # lifetime high BMI
+            + recent_loss / 5.0                    # ~ per 5 kg recent loss
+            + long_high / 10.0                     # ~ per 10 kg above current
+        )
+        df["hist_risk"] = hist_risk
+
         age_centered = (age - 50.0) / 10.0
         logit_p = (
             p.disease_logit_intercept
             + p.disease_logit_age_beta * age_centered
             + p.disease_logit_bmi_beta * (bmi_latent - 27.0)
         )
+
+        logit_p = np.nan_to_num(logit_p, nan=p.disease_logit_intercept,
+                                posinf=40.0, neginf=-40.0)
+
         prob_disease = logistic(logit_p)
+
+        # ensure probabilities are valid
+        prob_disease = np.nan_to_num(prob_disease, nan=0.0, posinf=1.0, neginf=0.0)
+        prob_disease = np.clip(prob_disease, 0.0, 1.0)
+
+        if not np.isfinite(prob_disease).all():
+            raise RuntimeError(
+                f"prob_disease contains non-finite values after cleaning: "
+                f"min={np.nanmin(prob_disease)}, max={np.nanmax(prob_disease)}"
+            )
+
         disease = r.binomial(1, prob_disease, size=len(df))
 
         # disease induced weight loss
@@ -400,19 +487,42 @@ class NHANESSimulator:
 
         return df
     
-    def _update_M_and_hazard(self, p, age0, t, wc, M_prev, disease, male, lowedu, smk, alc):
+    def _update_M_and_hazard(
+        self,
+        p,
+        age0,
+        t,
+        wc,
+        M_prev,
+        disease,
+        male,
+        lowedu,
+        smk,
+        alc,
+        hist_risk
+    ):
         dev = (wc - p.wc_ref) / 10.0
-        M = logistic(p.m0 + p.m1_adipo * (dev ** 2)
-                            + p.m2_persist * M_prev
-                            + p.m3_disease * disease)
-        eta = (p.gamma0
+
+        # central adiposity + disease + weight history
+        M = logistic(
+            p.m0
+            + p.m1_adipo * (dev ** 2)
+            + p.m2_persist * M_prev
+            + p.m3_disease * disease
+            + p.theta_hist * hist_risk
+        )
+
+        eta = (
+            p.gamma0
             + p.gamma1_per_year * (age0 + t / 12.0)
             + p.beta_male * male
             + p.beta_lowedu * lowedu
             + p.beta_smk * smk
             + p.beta_alc_hi * alc
             + p.theta_M * M
-            + p.beta_disease * disease)
+            + p.beta_disease * disease
+            + p.beta_hist_direct * hist_risk
+        )
         h = cloglog_inv(eta)
         h = np.minimum(h, p.monthly_hazard_cap)
         return M, h
@@ -437,6 +547,8 @@ class NHANESSimulator:
         smk = df["SMQ"].to_numpy(dtype=int)
         alc = df["ALQ"].to_numpy(dtype=int)
         disease = df["disease"].to_numpy(dtype=int)
+        hist_risk = df["hist_risk"].to_numpy(dtype=float)
+
 
         M = np.zeros(n, dtype=float)
         alive = np.ones(n, dtype=bool)
@@ -445,8 +557,19 @@ class NHANESSimulator:
 
         for t in range(p.T):
             M, h = self._update_M_and_hazard(
-                p, age0, t, wc, M, disease, male, lowedu, smk, alc
+                p,
+                age0,
+                t,
+                wc,
+                M,
+                disease,
+                male,
+                lowedu,
+                smk,
+                alc,
+                hist_risk
             )
+
             
             u = self.rng.random(n)
             new_events = (u < h) & alive
@@ -476,10 +599,24 @@ class NHANESSimulator:
 
         age0 = float(row["RIDAGEYR"])
         male = 1 if int(row["RIAGENDR"]) == 1 else 0
-        lowedu = int(row["EDU"])
-        smk = int(row["SMQ"])
-        alc = int(row["ALQ"])
+
+        if "EDU" in row.index:
+            lowedu = int(row["EDU"])
+        elif "DMDEDUC2" in row.index:
+            d = row["DMDEDUC2"]
+            # same convention you used in BaselineSampler: <= 2 = "low"
+            if pd.isna(d):
+                lowedu = 0
+            else:
+                lowedu = int(d <= 2)
+        else:
+            lowedu = 0
+
+        smk = int(row.get("SMQ", 0))
+        alc = int(row.get("ALQ", 0))
         disease = int(row.get("disease", 0))
+        hist_risk_val = float(row.get("hist_risk", 0.0))
+
         H = float(row["BMXHT"])
 
         wc_const = self.wc_mean(
@@ -502,6 +639,7 @@ class NHANESSimulator:
                 lowedu=np.array([lowedu], dtype=float),
                 smk=np.array([smk], dtype=float),
                 alc=np.array([alc], dtype=float),
+                hist_risk=np.array([hist_risk_val], dtype=float),
             )
             M = float(M_arr[0])
             h = float(h_arr[0])
@@ -515,6 +653,7 @@ class NHANESSimulator:
         test_size: float = 0.3,
         random_state: int = 42,
         stratify_events: bool = True,
+        allowed_feature_cols: Optional[Sequence[str]] = None,
     ) -> Tuple[pd.DataFrame, np.ndarray, pd.DataFrame, np.ndarray, pd.DataFrame]:
         """
         Return (train_X, y_train, test_X, y_test, full_panel).
@@ -539,11 +678,21 @@ class NHANESSimulator:
             "ICO_raw",
             "BRI_raw",
             "WTR_raw",
+            "BMI_max_hist",
+            "hist_risk",
+            "ABSI",
+            "ICO",
+            "BRI",
+            "WTR",
         }
         feature_cols = [
             c for c in panel.columns
             if c not in drop_cols and c not in {"SEQN"}
         ]
+
+        if allowed_feature_cols is not None:
+            allowed = set(allowed_feature_cols)
+            feature_cols = [c for c in feature_cols if c in allowed]
 
         X_all = panel[feature_cols].copy()
         time_all = panel["time"].astype(float).to_numpy()
@@ -567,9 +716,6 @@ _GLOBAL_PANEL: Optional[pd.DataFrame] = None
 
 def load_nhanes_survival_simulated(
     n: int = 10000,
-    time_col: str = "time",
-    event_col: str = "event",
-    id_col: str = "SEQN",
     test_size: float = 0.3,
     random_state: int = 42,
     stratify_events: bool = True,
@@ -592,20 +738,35 @@ def load_nhanes_survival_simulated(
         use_real_baseline=use_real_baseline,
         real_csv=real_csv,
     )
+
+    allowed_feature_cols = None
+    if real_csv is not None:
+        try:
+            real_df = pd.read_csv(real_csv, nrows=1)
+            allowed_feature_cols = list(real_df.columns)
+        except Exception as e:
+            print(
+                f"WARNING: could not read real_csv={real_csv} to infer "
+                f"allowed feature columns: {e}"
+            )
+            allowed_feature_cols = None
+
     X_train, y_train, X_test, y_test, panel = sim.sample_dataset(
         n=n,
         test_size=test_size,
         random_state=random_state,
         stratify_events=stratify_events,
+        allowed_feature_cols=allowed_feature_cols
     )
 
     _GLOBAL_SIMULATOR = sim
     _GLOBAL_PANEL = panel
 
     if extra_exclude_cols:
-        X_train = X_train.drop(columns=[c for c in extra_exclude_cols if c in X_train.columns])
-        X_test = X_test.drop(columns=[c for c in extra_exclude_cols if c in X_test.columns])
-
+        to_drop = [c for c in extra_exclude_cols if c in X_train.columns]
+        X_train = X_train.drop(columns=to_drop)
+        X_test = X_test.drop(columns=[c for c in to_drop if c in X_test.columns])
+    
     return X_train, y_train, X_test, y_test
 
 

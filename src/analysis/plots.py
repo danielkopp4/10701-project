@@ -32,7 +32,7 @@ def generate_index_plot(experiment_name: str):
         artifacts.data["gt_risk_index"],
         artifacts.data["predicted_risk_index"],
         alpha=0.5,
-        label=f"Index Plot for {experiment_name}",
+        label=f"Index Plot for {experiment_name.replace("_", " ")}",
     )
 
     min_val = min(

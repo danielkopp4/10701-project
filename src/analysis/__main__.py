@@ -1,15 +1,20 @@
 from .plots import generate_plots
-import os
+from .report import generate_report
 from pathlib import Path
+from ..common import get_experiment_artifacts_path_root
 
 
 def main():
     # find all experiments in results directory and generate plots for each
-    results_dir = Path(os.getenv('EXPERIMENT_ARTIFACTS_PATH', 'experiment_results'))
-    
-    for experiment_dir in results_dir.iterdir():
-        print(f"Generating plots for experiment: {experiment_dir.name}")
-        generate_plots(experiment_dir.name)
+    experiment_paths = [folder for folder in get_experiment_artifacts_path_root().iterdir()]
+
+    for experiment_path in experiment_paths:
+        print(f"Generating plots for experiment: {experiment_path.name}")
+        generate_plots(experiment_path.name)
+
+    print("generating report...")
+    generate_report(experiment_paths)
+
     
 
 if __name__ == "__main__":

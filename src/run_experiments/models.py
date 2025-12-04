@@ -2,7 +2,7 @@ import numpy as np
 from sksurv.linear_model import CoxPHSurvivalAnalysis
 from sksurv.ensemble import GradientBoostingSurvivalAnalysis
 from sksurv.ensemble import RandomSurvivalForest as SKRandomSurvivalForest
-
+from sksurv.functions import StepFunction
 
 from ..common import ModelWrapper
 
@@ -38,11 +38,12 @@ class Cox(ModelWrapper):
         self._check_fitted()
         return self.estimator.predict_survival_function(X)
 
+
 class GradientBoosting(ModelWrapper):
     def __init__(
             self,
             learning_rate: float = 0.05,
-            n_estimators: int = 50,
+            n_estimators: int = 100,
             max_depth: int = 3,
             min_samples_split: int = 50,
             min_samples_leaf: int = 50,
@@ -90,15 +91,18 @@ class GradientBoosting(ModelWrapper):
     def predict_survival_function(self, X):
         self._check_fitted()
         return self.estimator.predict_survival_function(X)
-    
+
+
 class RandomSurvivalForest(ModelWrapper):
     def __init__(
         self,
-        n_estimators: int = 100,
-        min_samples_split: int = 50,
-        min_samples_leaf: int = 50,
-        max_depth: int | None = 8,
-        max_features: str | int | float | None = "sqrt",
+        n_estimators: int = 400,
+        min_samples_split: int = 10,
+        min_samples_leaf: int = 5,
+        max_depth: int | None = None,
+        # max_depth: int | None = 8,
+        # max_features: str | int | float | None = "sqrt",
+        max_features: str | int | float | None = 0.8,
         n_jobs: int = -1,
         random_state: int = 0,
     ):

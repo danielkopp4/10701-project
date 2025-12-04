@@ -59,24 +59,21 @@ def run_experiments(
                     artifacts_by_name[experiment.name] = art
     
     datasets = [
-        # ("nhanes-real", real_data),
         ("nhanes-synthetic", synth_data),
+        ("nhanes-real", real_data),
     ]
     
     preprocessors = [
-        ("exclude-downstream", NHANESPreprocessor(exclude_downstream=True, exclude_BMI=True, exclude_waist=True)),
-        # ("bmi-only", NHANESPreprocessor(include_only_bmi=True)), # standard approach
-        # ("waist-to-height-only", NHANESPreprocessor(include_only_waist_to_height=True)),
-        ("intake-form", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True, exclude_BMI=True)),
-        ("intake-form-no-history", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True, exclude_BMI=True, exclude_weight_history=True)),
-        ("intake-feasible-with-weight", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True)),
-        # ("include_all", False), # requires higher alpha 
+        ("Exclude Downstream", NHANESPreprocessor(exclude_downstream=True, exclude_BMI=True, exclude_waist=True)),
+        ("Intake Only", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True, exclude_BMI=True)),
+        ("Intake w.o. W-History", NHANESPreprocessor(include_only_intake=True, exclude_downstream=True, exclude_BMI=True, exclude_weight_history=True)),
+        ("Intake + Basic Exam", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True, exclude_BMI=True, exclude_waist=True)),
     ]
     
     models = [
-        ("gradient-boost", GradientBoosting()),
         ("random-forest", RandomSurvivalForest()),
-        # ("cox", Cox(alpha=0.1)),
+        ("cox", Cox(alpha=0.2)),
+        # ("gradient-boost", GradientBoosting()),
     ]
     
     evaluate_experiments(
@@ -88,7 +85,7 @@ def run_experiments(
     
     # BMXBMI as target instead of weight
     preprocessors = [
-        ("bmi-only", NHANESPreprocessor(include_only_bmi=True)), # standard approach
+        ("BMI Only", NHANESPreprocessor(include_only_bmi=True)), # standard approach
     ]
     
     evaluate_experiments(
@@ -102,9 +99,9 @@ def run_experiments(
     
     # BMXWAIST as target instead of weight
     preprocessors = [
-        ("waist-to-height-only", NHANESPreprocessor(include_only_waist_to_height=True)),
-        ("intake-feasible", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True, exclude_weight=True, exclude_BMI=True)), # uses waist instead of weight
-        ("intake-feasible-no-history", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True, exclude_weight=True, exclude_weight_history=True, exclude_BMI=True)), # uses waist instead of weight
+        ("WtH Only", NHANESPreprocessor(include_only_waist_to_height=True)),
+        ("Intake + Basic Exam (waist circ.)", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True, exclude_weight=True, exclude_BMI=True)), # uses waist instead of weight
+        ("Intake + Basic Exam w.o. W-History (waist circ.)", NHANESPreprocessor(include_only_intake_and_basic=True, exclude_downstream=True, exclude_weight=True, exclude_weight_history=True, exclude_BMI=True)), # uses waist instead of weight
     ]
     
     evaluate_experiments(
@@ -120,6 +117,7 @@ def run_experiments(
         datasets, 
         [("include-all", NHANESPreprocessor())], 
         [
+            ("cox", Cox(alpha=0.2)), 
             # ("cox-strong-reg", Cox(alpha=1.0)), 
             # ("gradient-boost", GradientBoosting()),
             ("random-forest", RandomSurvivalForest()),
