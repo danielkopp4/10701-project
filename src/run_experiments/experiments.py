@@ -1,7 +1,7 @@
 from typing import Dict
 
 from ..common import Experiment, ExperimentArtifacts, get_experiment_artifacts_path
-from .models import Cox, GradientBoosting, RandomSurvivalForest
+from .models import Cox, GradientBoosting, RandomSurvivalForest, SVM
 from .preprocessors import NHANESPreprocessor
 from .evaluate import evaluate_experiment
 from ..get_data.dataset_api import load_nhanes_survival  # your real-data loader
@@ -73,6 +73,7 @@ def run_experiments(
     models = [
         ("random-forest", RandomSurvivalForest()),
         ("cox", Cox(alpha=0.2)),
+        ("svm", SVM(alpha=1.0, rank_ratio=1.0)),
         # ("gradient-boost", GradientBoosting()),
     ]
     
@@ -121,6 +122,7 @@ def run_experiments(
             # ("cox-strong-reg", Cox(alpha=1.0)), 
             # ("gradient-boost", GradientBoosting()),
             ("random-forest", RandomSurvivalForest()),
+            ("svm", SVM(alpha=1.0, rank_ratio=1.0)),
         ], 
         A_strata=A_strata, name_prefix="naive_"
     )
