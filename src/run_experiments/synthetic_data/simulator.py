@@ -64,8 +64,8 @@ class SynthParams:
     wc_ref: float = 95.0
 
     # Hazard model (cloglog) coefficients
-    gamma0: float = -8.5                        # baseline
-    gamma1_per_year: float = math.log(2.5) / 10.0 # doubling ~every 8 years
+    gamma0: float = -8. # baseline
+    gamma1_per_year: float = math.log(3) / 10.0 # doubling ~every 8 years
     beta_male: float = 0.25
     beta_lowedu: float = 0.18
     beta_smk: float = 0.35

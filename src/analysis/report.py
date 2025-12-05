@@ -22,7 +22,7 @@ def human_label(col: str) -> str:
     return col.replace("_", " ")
 
 
-def create_table(table_name: str, experiment_artifact_paths: List[Path], sort_by: str, metrics_to_include: List[str], include_name: bool = True, asc: bool = True, separate_name: bool = True, **formatting_kwargs):
+def create_table(table_name: str, experiment_artifact_paths: List[Path], sort_by: str, metrics_to_include: List[str], include_name: bool = True, asc: bool = True, separate_name: bool = True, to_drop: List[str] = [], **formatting_kwargs):
     assert sort_by in metrics_to_include
 
     # load all results to a table
@@ -84,6 +84,8 @@ def create_table(table_name: str, experiment_artifact_paths: List[Path], sort_by
             latex_formatters[pretty_col] = func
         formatting_kwargs["formatters"] = latex_formatters
     
+    df = df.drop(to_drop, axis=1)
+
     df.to_latex(table_root / f"{table_name}.tex", index=False, **formatting_kwargs)
 
 
@@ -92,10 +94,10 @@ def generate_report(experiment_paths: List[Path]):
     create_table(
         "sort_by_test_cindex", 
         experiment_paths, 
-        sort_by="test_cindex",
+        sort_by="test_cindex_harrell",
         metrics_to_include=[
             "train_cindex", 
-            "test_cindex", 
+            "test_cindex_harrell", 
             "pred_vs_gt_index_corr", 
             "pred_vs_gt_index_rmse"
         ],
@@ -113,7 +115,7 @@ def generate_report(experiment_paths: List[Path]):
         sort_by="pred_vs_gt_index_corr",
         metrics_to_include=[
             "train_cindex", 
-            "test_cindex", 
+            "test_cindex_harrell", 
             "pred_vs_gt_index_corr", 
             "pred_vs_gt_index_rmse"
         ],
