@@ -3,6 +3,9 @@ from sksurv.linear_model import CoxPHSurvivalAnalysis
 from sksurv.ensemble import GradientBoostingSurvivalAnalysis
 from sksurv.ensemble import RandomSurvivalForest as SKRandomSurvivalForest
 from sksurv.functions import StepFunction
+from sksurv.linear_model.coxph import BreslowEstimator
+from sksurv.svm import FastSurvivalSVM
+from sksurv.base import SurvivalAnalysisMixin
 
 from ..common import ModelWrapper
 
@@ -139,3 +142,59 @@ class RandomSurvivalForest(ModelWrapper):
     def predict_survival_function(self, X):
         self._check_fitted()
         return self.estimator.predict_survival_function(X)
+        
+class SVM(ModelWrapper, SurvivalAnalysisMixin):
+    def __init__(self, alpha: float = 1.0, rank_ratio: float = 1.0, **kwargs):
+        super().__init__(name="SVM")
+        self.alpha = alpha
+        self.rank_ratio = rank_ratio
+        self.kwargs = kwargs
+
+        self.estimator = FastSurvivalSVM(
+            alpha=self.alpha,
+            rank_ratio=self.rank_ratio,
+            **self.kwargs
+        )
+        self._fitted = False
+        self.breslow = None
+
+    def _check_fitted(self):
+        if not self._fitted:
+            raise RuntimeError("SVM: model has not been trained yet.")
+
+    def train(self, train_X, train_y, test_X=None, test_y=None):
+        self.estimator.fit(train_X, train_y)
+        risk_scores = self.estimator.predict(train_X)
+
+        event_name = train_y.dtype.names[0]
+        time_name = train_y.dtype.names[1]
+
+        events = train_y[event_name]
+        times = train_y[time_name]
+
+        self.breslow = BreslowEstimator().fit(risk_scores, events, times)
+        
+        self._fitted = True
+        return self
+
+    def predict(self, X):
+        """Predict risk scores"""        
+        self._check_fitted()
+        scores = self.estimator.predict(X)
+        return np.asarray(scores, dtype=float)
+
+    def predict_proba(self, X):
+        scores = self.predict(X)
+        return 1.0 / (1.0 + np.exp(-scores))
+    
+    def predict_survival_function(self, X, return_array=False):
+        self._check_fitted()
+        risk_scores = self.predict(X)
+        surv_funcs = self.breslow.get_survival_function(risk_scores)
+
+        if return_array:
+            unique_times = self.breslow.unique_times_
+            surv_array = np.row_stack([fn(unique_times) for fn in surv_funcs])
+            return surv_array
+            
+        return surv_funcs
