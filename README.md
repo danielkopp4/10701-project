@@ -12,7 +12,7 @@ python -m src.run_experiments
 
 To run analysis of experiments
 ```bash
-NOT YET DONE
+python -m src.analysis
 ```
 
 TODO:
