@@ -1,0 +1,42 @@
+\begin{tabular}{lllrrrr}
+\toprule
+Model & Dataset & Experiment & Train C-index & test cindex harrell & Index Correlation & Index RMSE \\
+\midrule
+RF & Synthetic & include-all & 0.958 & 0.891 & NaN & NaN \\
+Cox & Synthetic & include-all & 0.888 & 0.887 & NaN & NaN \\
+RF & Synthetic & Exclude Downstream & 0.950 & 0.865 & NaN & NaN \\
+RF & Synthetic & Intake + Basic Exam (waist circ.) & 0.948 & 0.864 & NaN & NaN \\
+Cox & Synthetic & Exclude Downstream & 0.863 & 0.864 & NaN & NaN \\
+RF & Synthetic & Intake + Basic Exam & 0.948 & 0.864 & NaN & NaN \\
+RF & Synthetic & Intake Only & 0.948 & 0.864 & NaN & NaN \\
+Cox & Synthetic & Intake w.o. W-History & 0.861 & 0.862 & NaN & NaN \\
+Cox & Synthetic & Intake + Basic Exam w.o. W-History (waist circ.) & 0.861 & 0.862 & NaN & NaN \\
+Cox & Synthetic & Intake + Basic Exam & 0.861 & 0.862 & NaN & NaN \\
+Cox & Synthetic & Intake Only & 0.861 & 0.862 & NaN & NaN \\
+Cox & Synthetic & Intake + Basic Exam (waist circ.) & 0.861 & 0.862 & NaN & NaN \\
+RF & Synthetic & Intake w.o. W-History & 0.943 & 0.860 & NaN & NaN \\
+RF & Synthetic & Intake + Basic Exam w.o. W-History (waist circ.) & 0.943 & 0.859 & NaN & NaN \\
+Cox & Synthetic & Intake Only & 0.752 & 0.755 & 0.550 & 0.075 \\
+Cox & Synthetic & Intake + Basic Exam & 0.752 & 0.755 & 0.550 & 0.075 \\
+Cox & Synthetic & Intake + Basic Exam (waist circ.) & 0.752 & 0.755 & 0.558 & 0.077 \\
+Cox & Synthetic & Intake w.o. W-History & 0.752 & 0.755 & 0.551 & 0.074 \\
+Cox & Synthetic & Intake + Basic Exam w.o. W-History (waist circ.) & 0.751 & 0.755 & 0.559 & 0.077 \\
+Cox & Synthetic & Exclude Downstream & 0.751 & 0.754 & 0.559 & 0.075 \\
+Cox & Synthetic & include-all & 0.753 & 0.750 & 0.161 & 0.558 \\
+RF & Synthetic & Intake + Basic Exam w.o. W-History (waist circ.) & 0.705 & 0.719 & 0.831 & 0.059 \\
+RF & Synthetic & Intake w.o. W-History & 0.705 & 0.714 & 0.829 & 0.055 \\
+RF & Synthetic & Intake Only & 0.691 & 0.705 & 0.779 & 0.056 \\
+RF & Synthetic & Intake + Basic Exam & 0.691 & 0.705 & 0.779 & 0.056 \\
+RF & Synthetic & Intake + Basic Exam (waist circ.) & 0.690 & 0.705 & 0.759 & 0.058 \\
+RF & Synthetic & Exclude Downstream & 0.675 & 0.694 & 0.755 & 0.063 \\
+RF & Synthetic & include-all & 0.630 & 0.669 & 0.735 & 0.083 \\
+Cox & Synthetic & WtH Only & 0.583 & 0.595 & NaN & NaN \\
+Cox & Synthetic & WtH Only & 0.576 & 0.575 & -0.193 & 0.262 \\
+RF & Synthetic & WtH Only & 0.886 & 0.572 & NaN & NaN \\
+RF & Synthetic & WtH Only & 0.684 & 0.558 & -0.019 & 0.172 \\
+Cox & Synthetic & BMI Only & 0.549 & 0.551 & -0.138 & 0.102 \\
+RF & Synthetic & BMI Only & 0.640 & 0.527 & -0.026 & 0.113 \\
+Cox & Synthetic & BMI Only & 0.515 & 0.506 & NaN & NaN \\
+RF & Synthetic & BMI Only & 0.682 & 0.504 & NaN & NaN \\
+\bottomrule
+\end{tabular}

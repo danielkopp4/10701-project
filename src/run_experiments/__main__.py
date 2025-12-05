@@ -13,7 +13,5 @@ if __name__ == "__main__":
     )
     
     run_experiments(
-        csv_path,
-        synthetic_n=2000,
-        T_eval_years=5
+        csv_path
     )

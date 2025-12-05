@@ -21,6 +21,11 @@ ALWAYS_EXCLUDE_COLS: Set[str] = {
     "permth_int",
     "permth_exm",
     "eligstat",
+    # survey design
+    'SDMVSTRA',    # masked variance pseudo-stratum
+    'SDMVPSU',     # masked variance pseudo-PSU
+    'WTMEC2YR',    # MEC exam weight
+    'WTINT2YR',    # interview weight
     # “cheating” markers: direct proxies for hazard (synthetic only)
     "disease",
     "prob_disease",
@@ -99,11 +104,9 @@ BASIC_EXAM_COLS: Set[str] = {
     # Anthropometrics that are low burden (clinic intake / basic exam)
     "BMXWAIST",     # waist circumference
     "BMXTHICR",     # thigh circumference
-    "ABSI",         # A Body Shape Index
-    "ICO",          # Index of Central Obesity
-    "BRI",          # Body Roundness Index
-    "WTR",          # waist-to-thigh ratio
 }
+
+
 
 class ClipTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, clip_min: float = -5.0, clip_max: float = 5.0):
@@ -137,10 +140,14 @@ class NHANESPreprocessor(Preprocessor):
     def __init__(
         self,
         exclude_downstream: bool = False, # excludes variables causally downstream of weight
+        exclude_weight: bool = False, # excludes weight
         include_only_waist_to_height: bool = False, # only keeps waist-to-height ratio
         include_only_bmi: bool = False, # only keeps BMI
         include_only_intake: bool = False, # only keeps variables feasible to collect at intake survey
         include_only_intake_and_basic: bool = False, # only keeps variables feasible to collect at intake survey + basic exam
+        exclude_weight_history: bool = False, # excludes weight history variables
+        exclude_BMI: bool = False, # excludes BMI
+        exclude_waist: bool = False, # excludes waist circumference
         impute_strategy: str = "median",
     ):
         self.exclude_downstream = exclude_downstream
@@ -149,6 +156,10 @@ class NHANESPreprocessor(Preprocessor):
         self.include_only_intake = include_only_intake
         self.include_only_intake_and_basic = include_only_intake_and_basic
         self.impute_strategy = impute_strategy
+        self.exclude_weight = exclude_weight
+        self.exclude_weight_history = exclude_weight_history
+        self.exclude_BMI = exclude_BMI
+        self.exclude_waist = exclude_waist
 
         self.feature_cols_: List[str] | None = None
         self.pipeline_: Pipeline | None = None
@@ -160,6 +171,18 @@ class NHANESPreprocessor(Preprocessor):
         if self.include_only_waist_to_height:
             include = {"BMXWAIST", "BMXHT"}
             exclude |= {c for c in cols if c not in include}
+            
+        if self.exclude_weight:
+            exclude |= {"BMXWT"}
+            
+        if self.exclude_BMI:
+            exclude |= {"BMXBMI"}
+            
+        if self.exclude_weight_history:
+            exclude |= {"WHD010", "WHD020", "WHD050", "WHD140"}
+            
+        if self.exclude_waist:
+            exclude |= {"BMXWAIST", "BMXTHICR"}
         
         if self.include_only_intake:
             include = INTAKE_FEASIBLE_COLS
@@ -182,6 +205,7 @@ class NHANESPreprocessor(Preprocessor):
                 "NHANESPreprocessor: no features left after exclusion. "
                 "Check ALWAYS_EXCLUDE_COLS / DOWNSTREAM_OF_WEIGHT_COLS."
             )
+        print('final feature cols:' , feature_cols)
         return feature_cols
 
     def fit(self, X, y=None):

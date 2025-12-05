@@ -51,7 +51,11 @@ class Preprocessor:
 
 
 class IdentityPreprocessor(Preprocessor):
+    def __init__(self):
+        self.feature_cols_ = None
+
     def fit(self, X, y=None):
+        self.feature_cols_ = X.columns
         return self
 
     def transform(self, X):
