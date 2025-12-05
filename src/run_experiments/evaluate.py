@@ -320,7 +320,6 @@ def evaluate_experiment(
     # train model
     model = experiment.model
     model.train(train_X, train_y, test_X, test_y)
-    artifacts.set_model(model)
 
     # IID evaluation
     test_risk = model.predict(test_X)

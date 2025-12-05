@@ -104,8 +104,7 @@ def generate_report(experiment_paths: List[Path]):
         asc=False,
         float_format="{:.3f}".format,
         formatters={
-            "dataset": lambda x: "Synthetic" if x.find("synthetic") else "Real",
-            "model": lambda x: {"random-forest": "RF", "gradient-boost": "GB", "cox": "Cox"}.get(x)
+            "dataset": lambda x: "Synthetic" if "synthetic" in x else "Real",
         }
     )
 
@@ -122,7 +121,10 @@ def generate_report(experiment_paths: List[Path]):
         asc=False,
         float_format="{:.3f}".format,
         formatters={
-            "dataset": lambda x: "Synthetic" if x.find("synthetic") else "Real",
-            "model": lambda x: {"random-forest": "RF", "gradient-boost": "GB", "cox": "Cox"}.get(x)
+            "dataset": lambda x: "Synthetic" if "synthetic" in x else "Real",
+            "model": lambda x: {"random-forest": "RF", "gradient-boost": "GB", "cox": "Cox", "svm" : "SVM"}.get(x)
         }
     )
+    
+    # print all available metrics
+    print(ExperimentArtifacts.load(experiment_paths[0]).metrics.keys())

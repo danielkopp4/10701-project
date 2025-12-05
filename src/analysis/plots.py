@@ -28,11 +28,12 @@ def generate_index_plot(experiment_name: str):
 
     fig, ax = plt.subplots(figsize=(8, 8))
 
+    exp_name = experiment_name.replace("_", " ")
     ax.scatter(
         artifacts.data["gt_risk_index"],
         artifacts.data["predicted_risk_index"],
         alpha=0.5,
-        label=f"Index Plot for {experiment_name.replace("_", " ")}",
+        label=f"Index Plot for {exp_name}",
     )
 
     min_val = min(

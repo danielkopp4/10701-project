@@ -1,6 +1,5 @@
 from .plots import generate_plots
 from .report import generate_report
-from pathlib import Path
 from ..common import get_experiment_artifacts_path_root
 
 

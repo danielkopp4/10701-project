@@ -86,7 +86,6 @@ class ExperimentArtifacts:
         self.experiment: Optional[Experiment] = deepcopy(experiment)
         self.data: Dict[str, Any] = {}
         self.metrics: Dict[str, Any] = {}
-        self.model: Optional[ModelWrapper] = None
         self.preprocessor: Optional[Preprocessor] = None
 
     @classmethod
@@ -99,9 +98,6 @@ class ExperimentArtifacts:
                 f"Loaded object is {type(obj)}, expected ExperimentArtifacts"
             )
         return obj
-
-    def set_model(self, model: ModelWrapper):
-        self.model = deepcopy(model)
 
     def set_preprocessor(self, preprocessor: Preprocessor):
         self.preprocessor = deepcopy(preprocessor)

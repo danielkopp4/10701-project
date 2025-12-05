@@ -14,7 +14,7 @@ def run_experiments(
     nhanes_csv_path: str,
     synthetic_n: int = 5000,
     T_eval_years: float = 10.0,
-    A_strata: int = 100,
+    A_strata: int = 80,
     verbose: bool = True,
 ) -> Dict[str, ExperimentArtifacts]:
     T_eval_months = T_eval_years * 12.0
@@ -117,13 +117,7 @@ def run_experiments(
     evaluate_experiments(
         datasets, 
         [("include-all", NHANESPreprocessor())], 
-        [
-            ("cox", Cox(alpha=0.2)), 
-            # ("cox-strong-reg", Cox(alpha=1.0)), 
-            # ("gradient-boost", GradientBoosting()),
-            ("random-forest", RandomSurvivalForest()),
-            ("svm", SVM(alpha=1.0, rank_ratio=1.0)),
-        ], 
+        models,
         A_strata=A_strata, name_prefix="naive_"
     )
     
